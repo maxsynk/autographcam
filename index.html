@@ -3,107 +3,210 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AUTOGRAPH CAM - Painel</title>
+    <title>CENTRAL - AUTOGRAPH CAM</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <style>
-        :root { --turquesa: #00d1d1; --dourado: #c5a059; --bg: #001a1a; }
+        :root { 
+            --preto: #000000;
+            --vermelho: #EF0707;
+            --turquesa: #03CDC7;
+            --gelo: #EFEEE9;
+            --bg-modal: rgba(0, 0, 0, 0.95);
+        }
+        
         body { 
-            background: var(--bg); 
-            color: white; 
-            font-family: 'Segoe UI', sans-serif; 
-            text-align: center; 
-            margin: 0; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center; 
-            min-height: 100vh; 
+            margin: 0; background: var(--preto); color: var(--gelo); 
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            display: flex; flex-direction: column; align-items: center;
+            min-height: 100vh; overflow-x: hidden;
+        }
+
+        .header { margin-top: 1.8cm; text-align: center; margin-bottom: 40px; }
+        .header h1 { color: var(--vermelho); font-size: 48px; font-weight: 900; letter-spacing: 2px; margin: 0; text-transform: uppercase; animation: pulse-red 3s infinite ease-in-out; }
+        .header p { color: var(--turquesa); font-size: 18px; margin: -5px 0 0 0; letter-spacing: 5px; font-weight: 300; text-transform: uppercase; opacity: 0.9; }
+
+        @keyframes pulse-red {
+            0%, 100% { text-shadow: 0 0 5px rgba(239, 7, 7, 0.2); transform: scale(1); }
+            50% { text-shadow: 0 0 20px rgba(239, 7, 7, 0.6); transform: scale(1.02); }
+        }
+
+        .main-container { flex: 1; display: flex; flex-direction: column; align-items: center; width: 92%; max-width: 500px; }
+
+        .btn-central {
+            width: 100%; padding: 20px; margin: 10px 0; border-radius: 8px;
+            text-transform: uppercase; font-weight: 800; font-size: 15px;
+            cursor: pointer; text-decoration: none; text-align: center;
+            display: none; box-sizing: border-box; transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .btn-create { background: var(--vermelho); color: var(--gelo); border: none; box-shadow: 0 4px 15px rgba(239, 7, 7, 0.2); }
+        #btn-galeria { background: rgba(3, 205, 199, 0.1); color: var(--turquesa); border: 1px solid var(--turquesa); }
+        #btn-copy-link { background: rgba(3, 205, 199, 0.1); color: var(--turquesa); border: 1px solid var(--turquesa); margin-bottom: 25px; }
+        
+        #btn-admin { background: transparent; color: var(--gelo); border: 1px solid #333; }
+        #btn-login { display: block; background: transparent; color: var(--vermelho); border: 2px solid var(--vermelho); margin-top: 50px; }
+
+        .event-list-container { width: 100%; margin-top: 30px; display: none; }
+
+        .event-card {
+            background: #0a0a0a; border: 1px solid #222;
+            padding: 15px; border-radius: 12px; margin-bottom: 15px;
+            display: grid; grid-template-columns: 1fr 90px; gap: 10px; transition: 0.3s;
         }
         
-        .logo-container { margin-bottom: 40px; }
-        .logo-container h1 { 
-            color: var(--dourado); 
-            font-size: 2.5rem; 
-            margin: 0; 
-            letter-spacing: 4px; 
-            text-transform: uppercase; 
-            font-weight: 900;
-            text-shadow: 0 0 15px rgba(197, 160, 89, 0.4);
-        }
-        .logo-container p { 
-            font-size: 12px; 
-            letter-spacing: 5px; 
-            opacity: 0.8; 
-            margin-top: 5px; 
-            color: var(--turquesa);
+        .event-card.active-border { border-color: var(--turquesa); background: rgba(3, 205, 199, 0.05); }
+        .event-info-col { display: flex; flex-direction: column; gap: 10px; justify-content: center; }
+        .event-info h4 { margin: 0; color: var(--gelo); text-transform: uppercase; font-size: 16px; line-height: 1.2; }
+        .event-info span { font-size: 10px; color: #666; display: block; margin-top: 4px; }
+
+        .btn-camera-main {
+            background: var(--turquesa); color: var(--preto);
+            border: none; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 32px; cursor: pointer; transition: 0.2s;
+            grid-row: span 2;
         }
 
-        .menu-grid { 
-            display: grid; 
-            grid-template-columns: 1fr 1fr; 
-            gap: 15px; 
-            width: 90%; 
-            max-width: 400px; 
+        .group-actions-row { display: flex; gap: 6px; width: 100%; }
+        .status-btn {
+            flex: 2; padding: 10px; border-radius: 6px; font-size: 9px; font-weight: 900;
+            cursor: pointer; text-transform: uppercase; border: none;
         }
+        .btn-is-on { background: var(--vermelho); color: var(--gelo); }
+        .btn-is-off { background: #1a1a1a; color: #444; border: 1px solid #333; }
 
-        .menu-item {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid var(--dourado);
-            padding: 25px 10px;
-            border-radius: 15px;
-            text-decoration: none;
-            color: white;
-            font-weight: bold;
-            transition: all 0.3s;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            font-size: 14px;
-        }
+        .btn-edit-big { flex: 1.5; background: #222; color: #fff; border: 1px solid #444; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 9px; }
+        .btn-del-big { flex: 0.7; background: rgba(239, 7, 7, 0.1); color: var(--vermelho); border: 1px solid var(--vermelho); border-radius: 6px; cursor: pointer; font-size: 14px; }
 
-        .menu-item:active { transform: scale(0.95); background: var(--dourado); color: black; }
-        .menu-item i { font-size: 24px; }
-        
-        /* Botão de destaque para a Câmera */
-        .btn-main { grid-column: 1 / span 2; background: var(--dourado); color: black; font-size: 18px; }
+        #modal-senha { position: fixed; inset: 0; background: var(--bg-modal); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(10px); }
+        .modal-content { background: #050505; padding: 30px; border-radius: 15px; border: 1px solid var(--vermelho); text-align: center; width: 85%; max-width: 300px; }
+        .modal-content input { width: 100%; padding: 15px; background: #000; border: 1px solid var(--vermelho); color: var(--vermelho); border-radius: 8px; text-align: center; font-size: 24px; letter-spacing: 8px; margin-bottom: 20px; box-sizing: border-box; outline: none; }
+        .btn-confirm { background: var(--vermelho); color: var(--gelo); border: none; padding: 15px; border-radius: 8px; font-weight: 900; width: 100%; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <div class="logo-container">
+    <div class="header">
         <h1>AUTOGRAPH CAM</h1>
         <p>MAX PRIME FOTO & VIDEO</p>
     </div>
 
-    <div class="menu-grid">
-        <a href="camera.html" class="menu-item btn-main">
-            <span>📷 ABRIR CÂMERA</span>
-        </a>
+    <div class="main-container">
+        <button id="btn-login" class="btn-central" onclick="abrirModal()">🔓 ACESSAR SISTEMA</button>
+        <a href="config_evento.html" id="btn-create" class="btn-protected btn-central btn-create" onclick="localStorage.removeItem('evento_para_editar')">➕ NOVO EVENTO</a>
+        <a href="galeria_admin.html" id="btn-admin" class="btn-protected btn-central">GERENCIAR GALERIA</a>
+        <a href="galeria.html" id="btn-galeria" class="btn-protected btn-central">ABRIR GALERIA</a>
+        
+        <button id="btn-copy-link" class="btn-protected btn-central" onclick="copiarLinkCliente()">🔗 COPIAR LINK CLIENTE</button>
+        
+        <div id="container-eventos" class="event-list-container">
+            <h3 style="font-size: 11px; color: var(--turquesa); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 15px; text-align: center;">Painel de Eventos</h3>
+            <div id="lista-eventos"></div>
+        </div>
 
-        <a href="config_evento.html" class="menu-item">
-            <span>⚙️ CONFIGURAR</span>
-        </a>
-
-        <a href="galeria.html" class="menu-item">
-            <span>🖼️ GALERIA</span>
-        </a>
-
-        <a href="galeria_admin.html" class="menu-item">
-            <span>🔐 ADMIN</span>
-        </a>
-
-        <a href="index.html" class="menu-item" style="opacity: 0.5;">
-            <span>🔄 RECARREGAR</span>
-        </a>
+        <button id="btn-lock" class="btn-protected btn-central" onclick="bloquear()" style="background: transparent; color: var(--vermelho); border: 1px solid rgba(239,7,7,0.3); margin-top: 40px; font-size: 11px;">SAIR DO SISTEMA</button>
     </div>
 
-    <script>
-        // Verificação rápida de configuração para evitar erros
-        window.onload = () => {
-            const config = localStorage.getItem('config_atual');
-            if (!config) {
-                console.log("Sistema aguardando configuração de evento.");
+    <div id="modal-senha">
+        <div class="modal-content">
+            <h3 style="color:var(--vermelho); letter-spacing: 2px; font-size: 14px;">SENHA DE ACESSO</h3>
+            <input type="password" id="input-senha" inputmode="numeric" placeholder="••••">
+            <button class="btn-confirm" onclick="validarSenha()">ENTRAR</button>
+            <p onclick="fecharModal()" style="margin-top:20px; font-size:12px; color:#555; cursor:pointer">Cancelar</p>
+        </div>
+    </div>
+
+<script>
+    const SENHA_MESTRA = "1234"; 
+    const WORKER_URL = "https://photomovie.maxprimefotovideo.workers.dev";
+
+    window.onload = () => { if(sessionStorage.getItem('logado') === 'true') liberarSistema(); }
+
+    function abrirModal() { document.getElementById('modal-senha').style.display = 'flex'; document.getElementById('input-senha').focus(); }
+    function fecharModal() { document.getElementById('modal-senha').style.display = 'none'; document.getElementById('input-senha').value = ''; }
+
+    function validarSenha() {
+        if (document.getElementById('input-senha').value === SENHA_MESTRA) {
+            sessionStorage.setItem('logado', 'true');
+            fecharModal();
+            liberarSistema();
+        } else { alert("Senha Incorreta"); }
+    }
+
+    function liberarSistema() {
+        document.getElementById('btn-login').style.display = 'none';
+        document.querySelectorAll('.btn-protected').forEach(b => b.style.display = 'block');
+        document.getElementById('container-eventos').style.display = 'block';
+        renderEventos();
+    }
+
+    function copiarLinkCliente() {
+        const config = JSON.parse(localStorage.getItem('config_atual'));
+        if (!config) { alert("Ative um evento primeiro!"); return; }
+        const idEvento = config.id_fixo || config.nome;
+        const link = `https://maxsynk.github.io/photomovie/galeria.html?evento=${encodeURIComponent(idEvento)}`;
+        navigator.clipboard.writeText(link).then(() => { alert("Link copiado!"); });
+    }
+
+    async function renderEventos() {
+        const container = document.getElementById('lista-eventos');
+        const eventoAtivoConfig = JSON.parse(localStorage.getItem('config_atual'));
+        try {
+            const res = await fetch(`${WORKER_URL}/listar-eventos?t=${Date.now()}`);
+            const eventos = await res.json();
+            if(!eventos || eventos.length === 0) { 
+                container.innerHTML = '<p style="text-align:center; opacity:0.3; font-size: 12px;">Sem eventos.</p>'; 
+                return; 
             }
-        };
-    </script>
+            container.innerHTML = '';
+            eventos.forEach((ev) => {
+                const estaAtivo = eventoAtivoConfig && eventoAtivoConfig.id === ev.id;
+                const evData = JSON.stringify(ev).replace(/"/g, '&quot;');
+                const card = document.createElement('div');
+                card.className = `event-card ${estaAtivo ? 'active-border' : ''}`;
+                card.innerHTML = `
+                    <div class="event-info-col">
+                        <div class="event-info">
+                            <h4>${ev.nome.replace(/_/g, ' ')}</h4>
+                            <span>DURAÇÃO: ${ev.tempo}s</span>
+                        </div>
+                        <div class="group-actions-row">
+                            <button class="status-btn ${estaAtivo ? 'btn-is-on' : 'btn-is-off'}" onclick='alternarAtivacao(${evData})'>
+                                ${estaAtivo ? '● ATIVO' : 'ATIVAR'}
+                            </button>
+                            <button class="btn-edit-big" onclick='irParaEditar(${evData})'>EDITAR</button>
+                            <button class="btn-del-big" onclick="excluirEvento('${ev.id}', '${ev.nome}')">×</button>
+                        </div>
+                    </div>
+                    <button class="btn-camera-main" onclick="irParaCamera(${evData})">📸</button>
+                `;
+                container.appendChild(card);
+            });
+        } catch (err) { container.innerHTML = `<p style="color: var(--vermelho); text-align:center;">Erro de conexão.</p>`; }
+    }
+
+    function irParaEditar(evento) { localStorage.setItem('evento_para_editar', JSON.stringify(evento)); window.location.href = `config_evento.html?id=${evento.id}`; }
+    function alternarAtivacao(evento) {
+        const atual = JSON.parse(localStorage.getItem('config_atual'));
+        if (atual && atual.id === evento.id) { localStorage.removeItem('config_atual'); } 
+        else { localStorage.setItem('config_atual', JSON.stringify(evento)); }
+        renderEventos();
+    }
+    function irParaCamera(evento) { localStorage.setItem('config_atual', JSON.stringify(evento)); window.location.href = 'camera.html'; }
+    async function excluirEvento(id, nome) {
+        if(confirm(`Apagar evento ${nome}?`)) {
+            try { 
+                await fetch(`${WORKER_URL}/deletar-evento-completo`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: id, evento: nome })
+                });
+                renderEventos(); 
+            } catch (e) { alert("Erro ao excluir."); }
+        }
+    }
+    function bloquear() { sessionStorage.removeItem('logado'); location.reload(); }
+</script>
 </body>
 </html>
