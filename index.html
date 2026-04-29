@@ -7,113 +7,110 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <style>
         :root { 
-            --preto: #000000;
-            --vermelho: #EF0707;
-            --turquesa: #03CDC7;
-            --gelo: #EFEEE9;
-            --bg-modal: rgba(0, 0, 0, 0.95);
+            --bg-deep: #0E1A25;
+            --bg-surface: #182232;
+            --accent: #69829E;
+            --text-main: #EFEEE9;
+            --text-dim: #A0B0C0;
+            --danger: rgba(255, 85, 85, 0.8);
         }
         
         body { 
-            margin: 0; background: var(--preto); color: var(--gelo); 
+            margin: 0; background: var(--bg-deep); color: var(--text-main); 
             font-family: 'Segoe UI', Roboto, sans-serif;
             display: flex; flex-direction: column; align-items: center;
             min-height: 100vh; overflow-x: hidden;
         }
 
         .header { margin-top: 1.8cm; text-align: center; margin-bottom: 40px; }
-        .header h1 { color: var(--vermelho); font-size: 48px; font-weight: 900; letter-spacing: 2px; margin: 0; text-transform: uppercase; animation: pulse-red 3s infinite ease-in-out; }
-        .header p { color: var(--turquesa); font-size: 18px; margin: -5px 0 0 0; letter-spacing: 5px; font-weight: 300; text-transform: uppercase; opacity: 0.9; }
+        .header h1 { color: var(--text-main); font-size: 52px; font-weight: 900; letter-spacing: 3px; margin: 0; text-transform: uppercase; animation: pulse-blue 3s infinite ease-in-out; }
+        .header p { color: var(--accent); font-size: 20px; margin: -5px 0 0 0; letter-spacing: 4px; font-weight: 300; text-transform: lowercase; opacity: 0.9; }
 
-        @keyframes pulse-red {
-            0%, 100% { text-shadow: 0 0 5px rgba(239, 7, 7, 0.2); transform: scale(1); }
-            50% { text-shadow: 0 0 20px rgba(239, 7, 7, 0.6); transform: scale(1.02); }
+        @keyframes pulse-blue {
+            0%, 100% { text-shadow: 0 0 5px rgba(105, 130, 158, 0.2); transform: scale(1); }
+            50% { text-shadow: 0 0 25px rgba(105, 130, 158, 0.5); transform: scale(1.02); }
         }
 
         .main-container { flex: 1; display: flex; flex-direction: column; align-items: center; width: 92%; max-width: 500px; }
 
         .btn-central {
-            width: 100%; padding: 20px; margin: 10px 0; border-radius: 8px;
-            text-transform: uppercase; font-weight: 800; font-size: 15px;
+            width: 100%; padding: 22px; margin: 10px 0; border-radius: 12px;
+            text-transform: uppercase; font-weight: 800; font-size: 16px;
             cursor: pointer; text-decoration: none; text-align: center;
             display: none; box-sizing: border-box; transition: all 0.3s ease;
-            border: 1px solid transparent;
         }
 
-        .btn-create { background: var(--vermelho); color: var(--gelo); border: none; box-shadow: 0 4px 15px rgba(239, 7, 7, 0.2); }
-        #btn-galeria { background: rgba(3, 205, 199, 0.1); color: var(--turquesa); border: 1px solid var(--turquesa); }
-        #btn-copy-link { background: rgba(3, 205, 199, 0.1); color: var(--turquesa); border: 1px solid var(--turquesa); margin-bottom: 25px; }
-        
-        #btn-admin { background: transparent; color: var(--gelo); border: 1px solid #333; }
-        #btn-login { display: block; background: transparent; color: var(--vermelho); border: 2px solid var(--vermelho); margin-top: 50px; }
+        #btn-login { display: block; background: transparent; color: var(--accent); border: 2px solid var(--accent); margin-top: 50px; }
+        #btn-create { background: var(--accent); color: var(--text-main); border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        #btn-admin { background: rgba(105, 130, 158, 0.1); color: var(--text-main); border: 1px solid var(--accent); }
+        #btn-galeria { background: rgba(105, 130, 158, 0.1); color: var(--accent); border: 1px solid var(--accent); }
+        #btn-copy-link { background: rgba(105, 130, 158, 0.1); color: var(--accent); border: 1px solid var(--accent); margin-bottom: 25px; }
 
         .event-list-container { width: 100%; margin-top: 30px; display: none; }
-
         .event-card {
-            background: #0a0a0a; border: 1px solid #222;
-            padding: 15px; border-radius: 12px; margin-bottom: 15px;
-            display: grid; grid-template-columns: 1fr 90px; gap: 10px; transition: 0.3s;
+            background: var(--bg-surface); border: 2px solid rgba(105, 130, 158, 0.1);
+            padding: 15px; border-radius: 20px; margin-bottom: 18px;
+            display: grid; grid-template-columns: 1fr 100px; gap: 10px;
         }
         
-        .event-card.active-border { border-color: var(--turquesa); background: rgba(3, 205, 199, 0.05); }
-        .event-info-col { display: flex; flex-direction: column; gap: 10px; justify-content: center; }
-        .event-info h4 { margin: 0; color: var(--gelo); text-transform: uppercase; font-size: 16px; line-height: 1.2; }
-        .event-info span { font-size: 10px; color: #666; display: block; margin-top: 4px; }
+        .event-card.active-border { border-color: var(--accent); background: rgba(105, 130, 158, 0.05); }
+        .event-info h4 { margin: 0; color: var(--text-main); text-transform: uppercase; font-size: 18px; line-height: 1.2; }
+        .event-info span { font-size: 11px; color: var(--text-dim); display: block; margin-top: 4px; }
 
         .btn-camera-main {
-            background: var(--turquesa); color: var(--preto);
-            border: none; border-radius: 10px;
+            background: var(--accent); color: var(--text-main);
+            border: none; border-radius: 15px;
             display: flex; align-items: center; justify-content: center;
-            font-size: 32px; cursor: pointer; transition: 0.2s;
+            font-size: 40px; cursor: pointer; transition: 0.2s;
             grid-row: span 2;
         }
 
-        .group-actions-row { display: flex; gap: 6px; width: 100%; }
+        .group-actions-row { display: flex; gap: 8px; width: 100%; margin-top: 12px; }
         .status-btn {
-            flex: 2; padding: 10px; border-radius: 6px; font-size: 9px; font-weight: 900;
+            flex: 2; padding: 12px; border-radius: 10px; font-size: 10px; font-weight: 900;
             cursor: pointer; text-transform: uppercase; border: none;
         }
-        .btn-is-on { background: var(--vermelho); color: var(--gelo); }
-        .btn-is-off { background: #1a1a1a; color: #444; border: 1px solid #333; }
+        .btn-is-on { background: var(--accent); color: var(--text-main); }
+        .btn-is-off { background: #0A121A; color: #4A5A6A; border: 1px solid #1C2C3C; }
 
-        .btn-edit-big { flex: 1.5; background: #222; color: #fff; border: 1px solid #444; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 9px; }
-        .btn-del-big { flex: 0.7; background: rgba(239, 7, 7, 0.1); color: var(--vermelho); border: 1px solid var(--vermelho); border-radius: 6px; cursor: pointer; font-size: 14px; }
+        .btn-edit-big { flex: 1.5; background: #2A3A4A; color: #fff; border: 1px solid #3A4A5A; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 10px; }
+        .btn-del-big { flex: 0.8; background: rgba(255, 85, 85, 0.1); color: #ff5555; border: 1px solid #ff5555; border-radius: 10px; cursor: pointer; font-size: 16px; }
 
-        #modal-senha { position: fixed; inset: 0; background: var(--bg-modal); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(10px); }
-        .modal-content { background: #050505; padding: 30px; border-radius: 15px; border: 1px solid var(--vermelho); text-align: center; width: 85%; max-width: 300px; }
-        .modal-content input { width: 100%; padding: 15px; background: #000; border: 1px solid var(--vermelho); color: var(--vermelho); border-radius: 8px; text-align: center; font-size: 24px; letter-spacing: 8px; margin-bottom: 20px; box-sizing: border-box; outline: none; }
-        .btn-confirm { background: var(--vermelho); color: var(--gelo); border: none; padding: 15px; border-radius: 8px; font-weight: 900; width: 100%; cursor: pointer; }
+        #modal-senha { position: fixed; inset: 0; background: rgba(14, 26, 37, 0.98); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(15px); }
+        .modal-content { background: var(--bg-surface); padding: 35px; border-radius: 25px; border: 1px solid var(--accent); text-align: center; width: 85%; max-width: 320px; }
+        .modal-content input { width: 100%; padding: 18px; background: #000; border: 1px solid var(--accent); color: var(--text-main); border-radius: 12px; text-align: center; font-size: 28px; letter-spacing: 12px; margin-bottom: 25px; box-sizing: border-box; outline: none; }
+        .btn-confirm { background: var(--accent); color: var(--text-main); border: none; padding: 15px; border-radius: 10px; font-weight: 900; width: 100%; cursor: pointer; }
     </style>
 </head>
 <body>
 
     <div class="header">
         <h1>AUTOGRAPH CAM</h1>
-        <p>MAX PRIME FOTO & VIDEO</p>
+        <p>colecionando momentos</p>
     </div>
 
     <div class="main-container">
         <button id="btn-login" class="btn-central" onclick="abrirModal()">🔓 ACESSAR SISTEMA</button>
-        <a href="config_evento.html" id="btn-create" class="btn-protected btn-central btn-create" onclick="localStorage.removeItem('evento_para_editar')">➕ NOVO EVENTO</a>
-        <a href="galeria_admin.html" id="btn-admin" class="btn-protected btn-central">GERENCIAR GALERIA</a>
-        <a href="galeria.html" id="btn-galeria" class="btn-protected btn-central">ABRIR GALERIA</a>
+        <a href="config_evento.html" id="btn-create" class="btn-protected btn-central" onclick="localStorage.removeItem('evento_para_editar')">➕ CRIAR NOVO EVENTO</a>
+        <a href="galeria_admin.html" id="btn-admin" class="btn-protected btn-central">👑 GALERIA ADMIN</a>
+        <a href="galeria.html" id="btn-galeria" class="btn-protected btn-central">🎞️ ABRIR GALERIA</a>
         
         <button id="btn-copy-link" class="btn-protected btn-central" onclick="copiarLinkCliente()">🔗 COPIAR LINK CLIENTE</button>
         
         <div id="container-eventos" class="event-list-container">
-            <h3 style="font-size: 11px; color: var(--turquesa); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 15px; text-align: center;">Painel de Eventos</h3>
+            <h3 style="font-size: 12px; color: var(--accent); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 20px; text-align: center;">Painel de Eventos</h3>
             <div id="lista-eventos"></div>
         </div>
 
-        <button id="btn-lock" class="btn-protected btn-central" onclick="bloquear()" style="background: transparent; color: var(--vermelho); border: 1px solid rgba(239,7,7,0.3); margin-top: 40px; font-size: 11px;">SAIR DO SISTEMA</button>
+        <button id="btn-lock" class="btn-protected btn-central" onclick="bloquear()" style="background: transparent; color: #ff5555; border: 1px solid rgba(255,85,85,0.3); margin-top: 40px; font-size: 12px;">SAIR DO SISTEMA</button>
     </div>
 
     <div id="modal-senha">
         <div class="modal-content">
-            <h3 style="color:var(--vermelho); letter-spacing: 2px; font-size: 14px;">SENHA DE ACESSO</h3>
+            <h3 style="color:var(--text-main); letter-spacing: 2px;">SENHA MESTRA</h3>
             <input type="password" id="input-senha" inputmode="numeric" placeholder="••••">
             <button class="btn-confirm" onclick="validarSenha()">ENTRAR</button>
-            <p onclick="fecharModal()" style="margin-top:20px; font-size:12px; color:#555; cursor:pointer">Cancelar</p>
+            <p onclick="fecharModal()" style="margin-top:20px; font-size:13px; color:var(--text-dim); cursor:pointer">Voltar</p>
         </div>
     </div>
 
@@ -152,13 +149,16 @@
     async function renderEventos() {
         const container = document.getElementById('lista-eventos');
         const eventoAtivoConfig = JSON.parse(localStorage.getItem('config_atual'));
+
         try {
             const res = await fetch(`${WORKER_URL}/listar-eventos?t=${Date.now()}`);
             const eventos = await res.json();
+            
             if(!eventos || eventos.length === 0) { 
-                container.innerHTML = '<p style="text-align:center; opacity:0.3; font-size: 12px;">Sem eventos.</p>'; 
+                container.innerHTML = '<p style="text-align:center; opacity:0.5;">Sem eventos no momento.</p>'; 
                 return; 
             }
+
             container.innerHTML = '';
             eventos.forEach((ev) => {
                 const estaAtivo = eventoAtivoConfig && eventoAtivoConfig.id === ev.id;
@@ -169,7 +169,7 @@
                     <div class="event-info-col">
                         <div class="event-info">
                             <h4>${ev.nome.replace(/_/g, ' ')}</h4>
-                            <span>DURAÇÃO: ${ev.tempo}s</span>
+                            <span>DATA: ${ev.data || '--/--/--'} | DURAÇÃO: ${ev.tempo}s</span>
                         </div>
                         <div class="group-actions-row">
                             <button class="status-btn ${estaAtivo ? 'btn-is-on' : 'btn-is-off'}" onclick='alternarAtivacao(${evData})'>
@@ -183,19 +183,33 @@
                 `;
                 container.appendChild(card);
             });
-        } catch (err) { container.innerHTML = `<p style="color: var(--vermelho); text-align:center;">Erro de conexão.</p>`; }
+        } catch (err) { 
+            container.innerHTML = `<p style="color: #ff5555; text-align:center;">Erro de conexão.</p>`; 
+        }
     }
 
-    function irParaEditar(evento) { localStorage.setItem('evento_para_editar', JSON.stringify(evento)); window.location.href = `config_evento.html?id=${evento.id}`; }
+    function irParaEditar(evento) {
+        localStorage.setItem('evento_para_editar', JSON.stringify(evento));
+        window.location.href = `config_evento.html?id=${evento.id}`;
+    }
+
     function alternarAtivacao(evento) {
         const atual = JSON.parse(localStorage.getItem('config_atual'));
-        if (atual && atual.id === evento.id) { localStorage.removeItem('config_atual'); } 
-        else { localStorage.setItem('config_atual', JSON.stringify(evento)); }
+        if (atual && atual.id === evento.id) {
+            localStorage.removeItem('config_atual');
+        } else {
+            localStorage.setItem('config_atual', JSON.stringify(evento));
+        }
         renderEventos();
     }
-    function irParaCamera(evento) { localStorage.setItem('config_atual', JSON.stringify(evento)); window.location.href = 'camera.html'; }
+
+    function irParaCamera(evento) {
+        localStorage.setItem('config_atual', JSON.stringify(evento));
+        window.location.href = 'camera.html';
+    }
+
     async function excluirEvento(id, nome) {
-        if(confirm(`Apagar evento ${nome}?`)) {
+        if(confirm(`ATENÇÃO: Apagar evento ${nome} e arquivos?`)) {
             try { 
                 await fetch(`${WORKER_URL}/deletar-evento-completo`, {
                     method: 'POST',
@@ -203,9 +217,10 @@
                     body: JSON.stringify({ id: id, evento: nome })
                 });
                 renderEventos(); 
-            } catch (e) { alert("Erro ao excluir."); }
+            } catch (e) { alert("Erro de conexão."); }
         }
     }
+
     function bloquear() { sessionStorage.removeItem('logado'); location.reload(); }
 </script>
 </body>
