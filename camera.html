@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Câmera Pro - AUTOGRAPH CAM</title>
+    <style>
+        :root { 
+            --bg-deep: #0E1A25;
+            --bg-surface: #182232;
+            --accent: #69829E;
+            --text-main: #EFEEE9;
+        }
+        
+        body { margin: 0; background: var(--bg-deep); overflow: hidden; font-family: 'Segoe UI', sans-serif; }
+        
+        #cam-container { width: 100vw; height: 100vh; position: relative; display: flex; flex-direction: column; }
+        
+        /* O preview do vídeo fica normal para o operador */
+        video { width: 100%; height: 100%; object-fit: cover; }
+        
+        #moldura-view { 
+            position: absolute; inset: 0; width: 100%; height: 100%; 
+            pointer-events: none; object-fit: fill; z-index: 10; 
+            display: none; 
+        }
+
+        .event-overlay {
+            position: absolute; top: 30px; width: 100%; text-align: center;
+            z-index: 20; color: var(--text-main); text-transform: uppercase;
+            letter-spacing: 3px; font-weight: 900; text-shadow: 2px 2px 10px rgba(0,0,0,0.8);
+        }
+        .event-sub {
+            display: block; font-size: 12px; font-weight: 300; letter-spacing: 5px;
+            color: var(--accent); text-transform: lowercase; margin-top: 5px;
+        }
+
+        .controls-wrapper {
+            position: absolute; bottom: 60px; width: 100%;
+            display: flex; align-items: center; justify-content: space-around;
+            z-index: 100;
+        }
+
+        .side-btn {
+            background: rgba(14, 26, 37, 0.6); border: 1.5px solid var(--accent);
+            color: var(--text-main); width: 55px; height: 55px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; font-size: 22px; backdrop-filter: blur(10px);
+        }
+
+        .shutter-container { position: relative; display: flex; align-items: center; justify-content: center; }
+        .shutter { 
+            width: 85px; height: 85px; border-radius: 50%; 
+            background: transparent; border: 5px solid var(--accent); 
+            cursor: pointer; position: relative; z-index: 105;
+            transition: transform 0.2s;
+        }
+        .shutter:active { transform: scale(0.9); }
+
+        .shutter::after {
+            content: ''; position: absolute; inset: -12px;
+            border-radius: 50%; border: 2px solid var(--accent);
+            animation: pulse-blue 1.5s infinite; opacity: 0;
+        }
+
+        @keyframes pulse-blue {
+            0% { transform: scale(1); opacity: 0.6; }
+            100% { transform: scale(1.4); opacity: 0; }
+        }
+
+        #status { position: fixed; inset: 0; display: none; background: rgba(14, 26, 37, 0.5); color: var(--text-main); font-size: 140px; align-items: center; justify-content: center; z-index: 200; font-weight: 900; text-shadow: 0 0 30px var(--accent); }
+        
+        #loading { 
+            position: fixed; inset: 0; display: none; background: var(--bg-deep); color: var(--text-main); 
+            align-items: center; justify-content: center; z-index: 300; flex-direction: column; gap: 20px; 
+        }
+        .spinner { width: 60px; height: 60px; border: 5px solid rgba(105, 130, 158, 0.1); border-top: 5px solid var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div id="cam-container">
+        <div class="event-overlay">
+            <span id="txt-evento">AUTOGRAPH CAM</span>
+            <span class="event-sub">colecionando momentos</span>
+        </div>
+        
+        <video id="preview" autoplay playsinline muted></video>
+        <img id="moldura-view" alt="moldura">
+
+        <div class="controls-wrapper">
+            <div class="side-btn" onclick="window.location.href='index.html'">✕</div>
+            
+            <div class="shutter-container">
+                <div class="shutter" id="btn-shoot"></div>
+            </div>
+
+            <div class="side-btn" onclick="toggleCamera()">🔄</div>
+        </div>
+    </div>
+
+    <canvas id="canvas" width="720" height="1280" style="display:none;"></canvas>
+    
+    <div id="status"></div>
+    
+    <div id="loading">
+        <div class="spinner"></div>
+        <b style="letter-spacing: 3px; font-size: 12px; color: var(--accent);">SALVANDO AUTÓGRAFO...</b>
+    </div>
+
+<script>
+    const WORKER_URL = "https://photomovie.maxprimefotovideo.workers.dev";
+    const video = document.getElementById('preview');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const btn = document.getElementById('btn-shoot');
+    const view = document.getElementById('moldura-view');
+    const txtEvento = document.getElementById('txt-evento');
+    
+    let currentStream;
+    let useFrontCamera = false; // Começamos com a traseira por padrão
+    const molduraImg = new Image();
+    molduraImg.crossOrigin = "anonymous"; 
+
+    async function startCamera() {
+        if (currentStream) {
+            currentStream.getTracks().forEach(track => track.stop());
+        }
+        const constraints = {
+            video: { 
+                facingMode: useFrontCamera ? "user" : "environment", 
+                width: { ideal: 1280 }, height: { ideal: 720 } 
+            },
+            audio: false
+        };
+        try {
+            currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+            video.srcObject = currentStream;
+        } catch (e) { alert("Erro ao acessar câmera."); }
+    }
+
+    function toggleCamera() {
+        useFrontCamera = !useFrontCamera;
+        startCamera();
+    }
+
+    window.onload = async () => {
+        const config = JSON.parse(localStorage.getItem('config_atual'));
+        if (config) {
+            txtEvento.innerText = config.nome.replace(/_/g, ' ') || "AUTOGRAPH CAM";
+            let molduraPath = config.molduraUrl || config.moldura;
+            if (molduraPath) {
+                const cleanId = molduraPath.includes('id=') ? molduraPath.split('id=')[1] : molduraPath;
+                const urlFinal = `${WORKER_URL}/stream?id=${cleanId}`;
+                molduraImg.src = urlFinal;
+                view.src = urlFinal;
+                molduraImg.onload = () => view.style.display = 'block';
+            }
+        }
+        startCamera();
+    };
+
+    btn.onclick = () => {
+        let c = 3;
+        const status = document.getElementById('status');
+        status.style.display = 'flex';
+        status.innerText = c;
+        
+        let t = setInterval(() => {
+            c--;
+            if(c > 0) status.innerText = c;
+            else { 
+                clearInterval(t); 
+                status.style.display = 'none'; 
+                iniciarGravacao(); 
+            }
+        }, 1000);
+    };
+
+    function iniciarGravacao() {
+        const chunks = [];
+        const config = JSON.parse(localStorage.getItem('config_atual'));
+        const tempo = (config ? parseInt(config.tempo) : 10) * 1000;
+        const nomeEvento = config ? (config.id_fixo || config.nome) : "Geral";
+
+        let recorder;
+
+        const loop = () => {
+            if (video.paused || video.ended) return;
+
+            ctx.save();
+            // --- LÓGICA DE ESPELHAMENTO PARA O AUTÓGRAFO ---
+            // Invertemos o eixo X para que a escrita na frente da lente fique legível
+            ctx.scale(-1, 1);
+            ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+            ctx.restore();
+
+            // A moldura é desenhada POR CIMA do vídeo já espelhado
+            if (molduraImg.complete) {
+                ctx.drawImage(molduraImg, 0, 0, canvas.width, canvas.height);
+            }
+
+            if (recorder && recorder.state === "recording") {
+                requestAnimationFrame(loop);
+            }
+        };
+
+        const stream = canvas.captureStream(30);
+        recorder = new MediaRecorder(stream, { 
+            mimeType: 'video/webm;codecs=vp8',
+            videoBitsPerSecond: 5000000 // Aumentado para 5MB para melhor qualidade
+        });
+        
+        recorder.ondataavailable = e => { if(e.data.size > 0) chunks.push(e.data); };
+        
+        recorder.onstop = async () => {
+            document.getElementById('loading').style.display = 'flex';
+            const blob = new Blob(chunks, { type: 'video/webm' });
+            
+            const fd = new FormData();
+            fd.append("video", blob);
+            fd.append("uuid", "autograph_" + Date.now() + ".webm");
+            fd.append("evento", nomeEvento); 
+
+            try {
+                const res = await fetch(`${WORKER_URL}/upload`, { method: "POST", body: fd });
+                if(res.ok) {
+                    setTimeout(() => { window.location.href = "galeria.html"; }, 500);
+                } else {
+                    alert("Erro no upload.");
+                    document.getElementById('loading').style.display = 'none';
+                }
+            } catch (err) {
+                alert("Erro de conexão com servidor.");
+                document.getElementById('loading').style.display = 'none';
+            }
+        };
+
+        recorder.start();
+        loop(); 
+        
+        setTimeout(() => { 
+            if(recorder.state === "recording") recorder.stop(); 
+        }, tempo);
+    }
+</script>
+</body>
+</html>
