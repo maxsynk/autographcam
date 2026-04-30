@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DOWNLOAD - AUTOGRAPH CAM</title>
+    <style>
+        :root { 
+            --bg-deep: #0E1A25;
+            --bg-surface: #182232;
+            --accent: #69829E;
+            --accent-dark: #4A5D73;
+            --text-main: #EFEEE9;
+        }
+        
+        body { 
+            margin: 0; 
+            background: var(--bg-deep); 
+            color: var(--text-main); 
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .header { text-align: center; margin-bottom: 25px; margin-top: 10px; }
+        .header h1 { color: var(--text-main); font-size: 32px; margin: 0; text-transform: uppercase; letter-spacing: 3px; font-weight: 900; }
+        #video-number { color: var(--accent); letter-spacing: 2px; font-weight: bold; display: block; margin-top: 5px; text-transform: uppercase; }
+
+        .video-preview {
+            width: 100%;
+            max-width: 400px;
+            border-radius: 20px;
+            overflow: hidden;
+            border: 2px solid var(--accent);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+            background: #000;
+            line-height: 0;
+        }
+
+        video { width: 100%; display: block; }
+
+        .btn-download {
+            margin-top: 35px;
+            width: 100%;
+            max-width: 320px;
+            padding: 20px;
+            border-radius: 50px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+            color: var(--bg-deep);
+            text-align: center;
+            text-decoration: none;
+            font-weight: 800;
+            text-transform: uppercase;
+            font-size: 16px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            border: none;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .btn-download:active { transform: scale(0.96); }
+
+        .btn-back { 
+            color: var(--text-main); 
+            margin-top: 40px; 
+            font-size: 14px; 
+            opacity: 0.7; 
+            text-decoration: none; 
+            padding: 10px;
+            border: 1px solid rgba(105, 130, 158, 0.3);
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>AUTOGRAPH CAM</h1>
+        <span id="video-number">CARREGANDO...</span>
+    </div>
+
+    <div class="video-preview">
+        <video id="player" controls playsinline autoplay loop muted crossorigin="anonymous"></video>
+    </div>
+
+    <button id="btn-download" class="btn-download">BAIXAR VÍDEO</button>
+    
+    <a href="index.html" class="btn-back">← Voltar ao Início</a>
+
+<script>
+    // 1. Definições globais
+    const WORKER_URL = 'https://photomovie.maxprimefotovideo.workers.dev';
+    
+    // 2. Função principal de carregamento
+    async function carregarVideo() {
+        const params = new URLSearchParams(window.location.search);
+        const videoId = params.get('id');
+        const numero = params.get('n');
+
+        const player = document.getElementById('player');
+        const downloadBtn = document.getElementById('btn-download');
+        const numLabel = document.getElementById('video-number');
+
+        // Se o ID existir na URL
+        if (videoId && videoId !== "null") {
+            const videoSrc = `${WORKER_URL}/stream?id=${videoId}`;
+            
+            numLabel.innerText = numero ? `VÍDEO #${numero}` : `MEU VÍDEO`;
+            player.src = videoSrc;
+
+            downloadBtn.onclick = async () => {
+                const originalText = downloadBtn.innerText;
+                downloadBtn.innerText = "PREPARANDO...";
+                downloadBtn.disabled = true;
+
+                try {
+                    const response = await fetch(videoSrc);
+                    if (!response.ok) throw new Error("Erro no download");
+                    
+                    const blob = await response.blob();
+                    const urlBlob = window.URL.createObjectURL(blob);
+                    
+                    const a = document.createElement('a');
+                    a.href = urlBlob;
+                    // Nomeia o arquivo com o novo padrão
+                    a.download = `autograph-cam-${numero || Date.now()}.mp4`;
+                    document.body.appendChild(a);
+                    a.click();
+                    
+                    setTimeout(() => {
+                        window.URL.revokeObjectURL(urlBlob);
+                        document.body.removeChild(a);
+                    }, 100);
+
+                } catch (e) {
+                    console.error("Falha no download:", e);
+                    window.open(videoSrc, '_blank');
+                } finally {
+                    downloadBtn.innerText = originalText;
+                    downloadBtn.disabled = false;
+                }
+            };
+        } else {
+            numLabel.innerText = "VÍDEO NÃO ENCONTRADO";
+            numLabel.style.color = "#ff4444";
+            downloadBtn.style.display = "none";
+        }
+    }
+
+    carregarVideo();
+</script>
+</body>
+</html>

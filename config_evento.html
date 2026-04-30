@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CONFIGURAR - AUTOGRAPH CAM</title>
+    <style>
+        :root { 
+            --bg-deep: #0E1A25;
+            --bg-surface: #182232;
+            --accent: #69829E;
+            --accent-dark: #4A5D73;
+            --text-main: #EFEEE9;
+            --danger: #ff4d4d;
+        }
+        
+        body { 
+            margin: 0; background: var(--bg-deep); color: var(--text-main); 
+            font-family: 'Segoe UI', Roboto, sans-serif; padding-bottom: 40px;
+            background-image: radial-gradient(circle at top right, #1a2a3a, #0E1A25);
+        }
+
+        .header {
+            background: linear-gradient(to bottom, #1c2d3d, var(--bg-deep)); 
+            padding: 35px 25px; text-align: center;
+            border-bottom: 2px solid var(--accent);
+        }
+
+        .header h1 { color: var(--text-main); margin: 0; font-size: 32px; letter-spacing: 5px; font-weight: 900; text-transform: uppercase; }
+        .header p { color: var(--accent); text-transform: uppercase; letter-spacing: 3px; font-size: 10px; margin-top: 5px; }
+
+        .container { padding: 20px; max-width: 500px; margin: 0 auto; }
+
+        .section {
+            background: var(--bg-surface); border: 1px solid rgba(105, 130, 158, 0.2); padding: 25px 20px;
+            border-radius: 24px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .section h3 { 
+            color: var(--accent); margin-top: 0; font-size: 12px; 
+            text-transform: uppercase; letter-spacing: 2px; border-bottom: 1px solid rgba(105, 130, 158, 0.1);
+            padding-bottom: 12px; margin-bottom: 20px;
+        }
+
+        label { display: block; font-size: 11px; margin: 15px 0 8px 0; color: var(--accent); font-weight: bold; text-transform: uppercase; }
+
+        input, select {
+            width: 100%; padding: 16px; background: #000; border: 1px solid #333;
+            color: white; border-radius: 14px; box-sizing: border-box; font-size: 16px; outline: none;
+        }
+        input:focus { border-color: var(--accent); }
+
+        /* Estilo para Info de Gravação Fixa */
+        .fixed-info {
+            background: rgba(105, 130, 158, 0.1); padding: 15px; border-radius: 12px;
+            text-align: center; border: 1px solid var(--accent); color: var(--text-main);
+            font-weight: bold; letter-spacing: 1px;
+        }
+
+        .action-box {
+            width: 100%; padding: 20px; background: #000; border: 2px dashed #444; 
+            color: #888; border-radius: 18px; text-align: center; cursor: pointer;
+            font-weight: bold; display: flex; flex-direction: column; justify-content: center; align-items: center; box-sizing: border-box;
+        }
+        
+        #frame-preview { width: 100%; aspect-ratio: 9/16; max-height: 250px; margin-top: 15px; display: none; border-radius: 12px; border: 1px solid var(--accent); object-fit: contain; background: #000; }
+
+        .btn-save-main {
+            width: 100%; padding: 22px; background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+            border: none; border-radius: 50px; color: var(--bg-deep); font-weight: 900;
+            text-transform: uppercase; cursor: pointer; font-size: 17px; margin-top: 20px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.4);
+        }
+
+        .modal { position: fixed; inset: 0; background: rgba(14, 26, 37, 0.98); z-index: 9999; display: none; align-items: center; justify-content: center; backdrop-filter: blur(10px); }
+        .modal-content { width: 85%; max-width: 400px; background: var(--bg-surface); border-radius: 35px; border: 1px solid var(--accent); padding: 30px; display: flex; flex-direction: column; gap: 10px; }
+
+        #audio-player { width: 100%; margin: 15px 0; filter: invert(30%) sepia(10%) saturate(1000%) hue-rotate(170deg); height: 35px; }
+        
+        .trim-container { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
+        .trim-input { text-align: center; color: var(--accent); font-family: monospace; font-size: 18px; width: 60px; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1 id="titulo-pagina">AUTOGRAPH CAM</h1>
+        <p>colecionando momentos</p>
+    </div>
+
+    <div class="container">
+        <input type="hidden" id="conf-id">
+        <input type="hidden" id="conf-id-fixo">
+
+        <div class="section">
+            <h3>1. O Evento</h3>
+            <label>NOME DO EVENTO (Visual)</label>
+            <input type="text" id="conf-nome" placeholder="Ex: Festa de Lançamento X">
+            <label>DATA</label>
+            <input type="date" id="conf-data">
+        </div>
+
+        <div class="section">
+            <h3>2. Configuração de Vídeo</h3>
+            <label>TEMPO DE GRAVAÇÃO</label>
+            <div class="fixed-info">10 SEGUNDOS (FIXO)</div>
+            <input type="hidden" id="conf-tempo" value="10">
+            
+            <label>EFEITO DE VELOCIDADE</label>
+            <div class="fixed-info" style="font-size: 10px;">LOOP AUTOGRAPH (NORMAL > REVERSO > IDA)</div>
+            <input type="hidden" id="conf-preset" value="autograph_loop">
+            <input type="hidden" id="conf-v1" value="1.0">
+            <input type="hidden" id="conf-v2" value="2.0">
+            <input type="hidden" id="conf-v3" value="1.5">
+            <input type="hidden" id="conf-reverso" value="true">
+        </div>
+
+        <div class="section">
+            <h3>3. Estética</h3>
+            <div class="action-box" onclick="toggleModal('music-modal', true)" style="margin-bottom: 10px; border-style: solid; border-color: rgba(105, 130, 158, 0.3);">
+                <span id="music-status-text" style="color: var(--accent);">🎵 CONFIGURAR MÚSICA</span>
+                <small id="music-filename-display" style="color: #666; font-size: 10px; margin-top: 5px; display: block;"></small>
+            </div>
+            
+            <div class="action-box" id="btn-moldura-box" onclick="document.getElementById('file-moldura').click()">
+                <span id="upload-label">📸 UPAR MOLDURA (PNG)</span>
+                <input type="file" id="file-moldura" accept="image/png" style="display:none" onchange="subirArquivo(this, 'MOLDURA')">
+            </div>
+            <input type="hidden" id="conf-moldura-url">
+            <input type="hidden" id="conf-musica-url">
+            <input type="hidden" id="conf-musica-name">
+            <center><img id="frame-preview"></center>
+        </div>
+
+        <button class="btn-save-main" onclick="salvarConfig()">SALVAR EVENTO</button>
+        <p onclick="window.location.href='index.html'" style="text-align:center; color:var(--accent); font-size:12px; margin-top:20px; cursor:pointer; font-weight:bold; text-transform: uppercase;">← Voltar</p>
+    </div>
+
+    <div id="music-modal" class="modal">
+        <div class="modal-content">
+            <h4 style="color:var(--accent); text-align:center; margin-bottom: 5px; text-transform: uppercase;">Estúdio Musical</h4>
+            <div class="action-box" onclick="document.getElementById('file-musica').click()" style="padding: 15px;">
+                <span id="music-file-label">📤 UPAR MP3</span>
+                <input type="file" id="file-musica" accept="audio/mpeg, audio/mp3" style="display:none" onchange="subirArquivo(this, 'MUSICA')">
+            </div>
+            <div id="music-controls" style="margin-top: 10px;">
+                <audio id="audio-player" controls style="display: none;"></audio>
+                <label>INICIAR MÚSICA EM (MM:SS):</label>
+                <div class="trim-container">
+                    <input type="number" id="trim-min" class="trim-input" placeholder="00" min="0" value="0" oninput="sincronizarPlayer()">
+                    <span style="font-weight:bold;">:</span>
+                    <input type="number" id="trim-sec" class="trim-input" placeholder="00" min="0" max="59" value="0" oninput="sincronizarPlayer()">
+                    <button type="button" onclick="marcarTempoAtual()" style="background: var(--bg-deep); border: 1px solid var(--accent); color: var(--accent); border-radius: 10px; padding: 12px; cursor: pointer; font-weight: bold; flex-shrink: 0;">MARCAR</button>
+                </div>
+                <div style="background: rgba(105, 130, 158, 0.1); padding: 12px; border-radius: 12px; margin-top: 15px; border: 1px solid rgba(105, 130, 158, 0.2);">
+                    <label style="margin: 0; color: var(--accent);"><input type="checkbox" id="conf-musica-loop-vol" checked> Volume Dinâmico (Fade)</label>
+                </div>
+            </div>
+            <button class="btn-save-main" style="padding: 15px;" onclick="fecharModalMusica()">CONCLUIR</button>
+        </div>
+    </div>
+
+<script>
+    const WORKER_URL = "https://autographcam.maxprimefotovideo.workers.dev";
+    const player = document.getElementById('audio-player');
+
+    function sanitizarPasta(texto) {
+        if (!texto) return "";
+        return texto.normalize("NFD")
+                    .replace(/[\u0300-\u036f]/g, "")
+                    .replace(/[^\w\s]/gi, '')
+                    .replace(/\s+/g, '_')
+                    .toLowerCase();
+    }
+
+    window.onload = () => {
+        const editData = localStorage.getItem('evento_para_editar');
+        if (editData) {
+            const ev = JSON.parse(editData);
+            const idSeguro = ev.id_fixo || sanitizarPasta(ev.nome);
+            
+            document.getElementById('conf-id').value = ev.id || "";
+            document.getElementById('conf-id-fixo').value = idSeguro; 
+            document.getElementById('conf-nome').value = ev.nome || "";
+            document.getElementById('conf-data').value = ev.data || "";
+            
+            if(ev.musicaUrl) {
+                document.getElementById('conf-musica-url').value = ev.musicaUrl;
+                document.getElementById('conf-musica-name').value = ev.musicaName || "";
+                document.getElementById('music-filename-display').innerText = ev.musicaName || "Arquivo carregado";
+                document.getElementById('music-status-text').innerText = "🎵 MÚSICA CONFIGURADA";
+                player.src = `${WORKER_URL}/stream?id=${ev.musicaUrl}`;
+                player.style.display = "block";
+                const totalSeconds = parseInt(ev.musicaTrim) || 0;
+                document.getElementById('trim-min').value = Math.floor(totalSeconds / 60);
+                document.getElementById('trim-sec').value = totalSeconds % 60;
+                document.getElementById('conf-musica-loop-vol').checked = ev.musicaLoopVol !== false;
+            }
+
+            if(ev.molduraUrl) {
+                document.getElementById('conf-moldura-url').value = ev.molduraUrl;
+                document.getElementById('frame-preview').src = `${WORKER_URL}/stream?id=${ev.molduraUrl}`; 
+                document.getElementById('frame-preview').style.display = "block";
+                document.getElementById('upload-label').innerText = "📸 MOLDURA OK";
+            }
+            document.getElementById('titulo-pagina').innerText = "EDITAR EVENTO";
+        }
+    };
+
+    function sincronizarPlayer() {
+        if(player && player.src) {
+            const m = parseInt(document.getElementById('trim-min').value) || 0;
+            const s = parseInt(document.getElementById('trim-sec').value) || 0;
+            player.currentTime = (m * 60) + s;
+        }
+    }
+
+    function marcarTempoAtual() {
+        if(player && player.src) {
+            const total = Math.floor(player.currentTime);
+            document.getElementById('trim-min').value = Math.floor(total / 60);
+            document.getElementById('trim-sec').value = total % 60;
+        }
+    }
+
+    function toggleModal(id, show) { document.getElementById(id).style.display = show ? 'flex' : 'none'; if(!show) player.pause(); }
+    function fecharModalMusica() { toggleModal('music-modal', false); }
+
+    async function subirArquivo(input, tipo) {
+        const idPasta = document.getElementById('conf-id-fixo').value.trim() || sanitizarPasta(document.getElementById('conf-nome').value);
+        if(!idPasta) { alert("Dê um nome ao evento primeiro!"); return; }
+        if(!input.files[0]) return;
+        
+        const file = input.files[0];
+        const label = tipo === 'MOLDURA' ? document.getElementById('upload-label') : document.getElementById('music-file-label');
+        label.innerText = "⏳ ENVIANDO...";
+
+        const formData = new FormData();
+        formData.append("file", file);
+        const fileName = tipo === 'MOLDURA' ? `moldura_principal.png` : `musica_evento.mp3`;
+        formData.append("uuid", fileName); 
+        formData.append("evento", idPasta);
+
+        try {
+            await fetch(`${WORKER_URL}/upload`, { method: 'POST', body: formData });
+            const pathRelativo = `${idPasta}/${fileName}`;
+            if(tipo === 'MOLDURA') {
+                document.getElementById('conf-moldura-url').value = pathRelativo;
+                document.getElementById('frame-preview').src = `${WORKER_URL}/stream?id=${pathRelativo}&t=${Date.now()}`;
+                document.getElementById('frame-preview').style.display = "block";
+                label.innerText = "📸 MOLDURA OK";
+            } else {
+                document.getElementById('conf-musica-url').value = pathRelativo;
+                document.getElementById('conf-musica-name').value = file.name;
+                document.getElementById('music-filename-display').innerText = file.name;
+                label.innerText = "✅ " + file.name;
+                player.src = URL.createObjectURL(file);
+                player.style.display = "block";
+            }
+        } catch (e) { alert("Erro no upload."); label.innerText = "ERRO"; }
+    }
+
+    async function salvarConfig() {
+        const nomeVisual = document.getElementById('conf-nome').value.trim();
+        let idFixo = document.getElementById('conf-id-fixo').value.trim();
+        if(!nomeVisual) return alert("Digite o nome do evento.");
+        if(!idFixo) { idFixo = sanitizarPasta(nomeVisual); }
+
+        const config = {
+            id: document.getElementById('conf-id').value || String(Date.now()),
+            id_fixo: idFixo, 
+            nome: nomeVisual, 
+            data: document.getElementById('conf-data').value,
+            tempo: "10", // Fixo
+            preset: "autograph_loop",
+            v1: "1.0",
+            v2: "2.0",
+            v3: "1.5",
+            reverso: true,
+            molduraUrl: document.getElementById('conf-moldura-url').value,
+            musicaUrl: document.getElementById('conf-musica-url').value,
+            musicaName: document.getElementById('conf-musica-name').value,
+            musicaTrim: String((parseInt(document.getElementById('trim-min').value)||0)*60 + (parseInt(document.getElementById('trim-sec').value)||0)),
+            musicaLoopVol: document.getElementById('conf-musica-loop-vol').checked
+        };
+
+        try {
+            const res = await fetch(`${WORKER_URL}/salvar-evento`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            });
+            if(res.ok) { 
+                localStorage.setItem('config_atual', JSON.stringify(config));
+                localStorage.removeItem('evento_para_editar');
+                alert("Evento salvo!"); 
+                window.location.href = 'index.html'; 
+            }
+        } catch (e) { alert("Erro ao salvar."); }
+    }
+</script>
+</body>
+</html>
