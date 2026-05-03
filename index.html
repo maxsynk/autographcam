@@ -113,7 +113,7 @@
     </div>
 
 <script>
-    const SENHA_MESTRA = ""; // Defina sua senha aqui
+    const SENHA_MESTRA = ""; // Sua senha
     const WORKER_URL = "https://autographcam.maxprimefotovideo.workers.dev";
 
     window.onload = () => { if(sessionStorage.getItem('logado') === 'true') liberarSistema(); }
@@ -144,7 +144,7 @@
         navigator.clipboard.writeText(link).then(() => { alert("Link copiado!"); });
     }
 
-    // Função Unificada para Preparar Dados (Garante compatibilidade com Camera e Edição)
+    // Função central de mapeamento para garantir que todos os dados cheguem à camera.html e config_evento.html
     function prepararDadosEvento(ev) {
         return {
             id: ev.id,
@@ -171,8 +171,9 @@
 
     function alternarAtivacao(evRaw) {
         const dados = prepararDadosEvento(evRaw);
+        // Salva como o evento ativo do sistema
         localStorage.setItem('config_atual', JSON.stringify(dados));
-        renderEventos();
+        renderEventos(); // Atualiza a interface para mostrar a borda e o botão "ATIVADO"
     }
 
     async function renderEventos() {
@@ -193,10 +194,9 @@
                 const nomeExibicao = ev.nome_visual || ev.evento_id || "Evento Sem Nome";
                 const idPasta = ev.evento_id; 
 
-                // Verificação de ativação baseada no ID único do banco
+                // Lógica de ativação baseada no ID do banco
                 const estaAtivo = eventoAtivoConfig && (eventoAtivoConfig.id === ev.id);
 
-                // Passamos o objeto cru do banco para as funções de tratamento
                 const evDataRaw = JSON.stringify(ev).replace(/"/g, '&quot;');
                 
                 const card = document.createElement('div');
@@ -209,9 +209,9 @@
                         </div>
                         <div class="group-actions-row">
                             <button class="status-btn ${estaAtivo ? 'btn-is-on' : 'btn-is-off'}" onclick='alternarAtivacao(${evDataRaw})'>
-                                ${estaAtivo ? '● SELECIONADO' : 'SELECIONAR'}
+                                ${estaAtivo ? '● ATIVADO' : 'ATIVAR'}
                             </button>
-                            <button class="btn-edit-big" onclick='irParaEditar(${evDataRaw})'>CONFIG</button>
+                            <button class="btn-edit-big" onclick='irParaEditar(${evDataRaw})'>EDITAR</button>
                             <button class="btn-del-big" onclick="excluirEvento('${ev.id}', '${idPasta}')">×</button>
                         </div>
                     </div>
