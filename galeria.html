@@ -3,40 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta property="og:title" content="Galeria de Vídeos - AUTOGRAPH CAM">
-    <meta property="og:description" content="Acesse seus vídeos do evento aqui.">
-    <meta property="og:image" content="https://maxsynk.github.io/photomovie/seu-logo.png">
-    <meta property="og:url" content="https://maxsynk.github.io/photomovie/galeria.html">
     <title>AUTOGRAPH CAM - GALERIA</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <style>
-        :root { 
-            --bg-deep: #0E1A25;
-            --bg-surface: #182232;
-            --accent: #69829E;
-            --text-main: #EFEEE9;
-        }
-        
+        :root { --bg-deep: #0E1A25; --bg-surface: #182232; --accent: #69829E; --text-main: #EFEEE9; }
         body { background: var(--bg-deep); color: var(--text-main); font-family: 'Segoe UI', sans-serif; text-align: center; margin: 0; min-height: 100vh; overflow-x: hidden; }
-        
         .sticky-top { position: sticky; top: 0; z-index: 100; background: var(--bg-deep); }
         .header { padding: 20px; border-bottom: 2px solid var(--accent); background: rgba(14, 26, 37, 0.9); backdrop-filter: blur(15px); }
         .header h1 { color: var(--text-main); letter-spacing: 5px; margin: 0; text-transform: uppercase; font-size: 1.8rem; font-weight: 900; }
         .subtitle { font-size: 11px; letter-spacing: 4px; opacity: 0.9; margin-top: 2px; text-transform: uppercase; color: var(--accent); }
-        
         .event-info-container { display: flex; align-items: center; justify-content: flex-start; width: 100%; margin-top: 15px; padding-left: 10px; cursor: pointer; }
         .v-line { width: 2px; height: 30px; background: var(--accent); border-radius: 2px; margin-right: 10px; }
         #nome-evento-titulo { color: var(--accent); font-size: 13px; margin: 0; letter-spacing: 1px; text-transform: uppercase; font-weight: bold; }
-
         .search-area { padding: 15px; background: rgba(0,0,0,0.3); display: flex; justify-content: center; gap: 10px; border-bottom: 1px solid rgba(105, 130, 158, 0.2); }
         .search-area input { width: 180px; padding: 12px; border-radius: 8px; border: 1px solid var(--accent); background: #000; color: var(--accent); text-align: center; font-size: 18px; outline: none; }
         .btn-busca { background: var(--accent); color: var(--bg-deep); border: none; padding: 0 20px; border-radius: 8px; font-weight: bold; cursor: pointer; }
-
         .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; padding: 15px; padding-bottom: 50px; }
         .video-card { background: #000; border: 1px solid rgba(105, 130, 158, 0.3); border-radius: 12px; overflow: hidden; aspect-ratio: 9/16; position: relative; cursor: pointer; }
         .video-number { position: absolute; top: 10px; right: 10px; color: white; font-weight: bold; background: var(--accent); padding: 2px 8px; border-radius: 5px; z-index: 5; font-size: 12px; }
         .video-card video { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
-
         #modal-zoom { position: fixed; inset: 0; background: rgba(14, 26, 37, 0.98); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(10px); }
         #media-full { width: 85%; max-height: 70vh; border: 2px solid var(--accent); border-radius: 15px; background: #000; }
         .modal-controls { margin-top: 25px; display: flex; gap: 10px; width: 85%; justify-content: center; }
@@ -72,9 +57,6 @@
         </div>
     </div>
 
-<script>
-    // URL ATUALIZADA
-    <!-- Mantenha o seu HTML/CSS igual, apenas substitua o <script> abaixo -->
 <script>
     const WORKER_URL = "https://autographcam.maxprimefotovideo.workers.dev";
     let listaArquivosAtuais = [];
@@ -112,11 +94,11 @@
         document.getElementById('nome-evento-titulo').innerText = idPastaFixo.replace(/_/g, ' ');
 
         try {
-            // CORREÇÃO: Usando a rota correta que configuramos na Worker
+            // BUSCA NA ROTA CORRETA
             const res = await fetch(`${WORKER_URL}/listar-videos-evento?evento=${encodeURIComponent(idPastaFixo)}`);
             const dados = await res.json();
             
-            // Filtra para exibir apenas os vídeos que já passaram pelo Python (prefixo autograph_)
+            // FILTRA APENAS VÍDEOS PROCESSADOS
             const novos = dados.filter(f => f.video_path.toLowerCase().includes('autograph_'));
             
             if (JSON.stringify(novos) !== JSON.stringify(listaArquivosAtuais)) {
