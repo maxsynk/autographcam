@@ -5,14 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Câmera - AUTOGRAPH CAM</title>
     <style>
-        :root { 
-            --bg-deep: #0E1A25;
-            --bg-surface: #182232;
-            --accent: #69829E;
-            --text-main: #EFEEE9;
-        }
+        :root { --bg-deep: #0E1A25; --bg-surface: #182232; --accent: #69829E; --text-main: #EFEEE9; }
+        body { margin: 0; background: var(--bg-deep); overflow: hidden; font-family: 'Segoe UI', sans-serif; color: var(--text-main); }
         
-        body { margin: 0; background: var(--bg-deep); overflow: hidden; font-family: 'Segoe UI', sans-serif; }
         #cam-container { width: 100vw; height: 100vh; position: relative; display: flex; flex-direction: column; }
         video { width: 100%; height: 100%; object-fit: cover; }
         
@@ -22,20 +17,22 @@
             display: none; 
         }
 
-        .event-overlay {
+        .event-header {
             position: absolute; top: 30px; width: 100%; text-align: center;
-            z-index: 20; color: var(--text-main); text-transform: uppercase;
-            letter-spacing: 3px; font-weight: 900; text-shadow: 2px 2px 10px rgba(0,0,0,0.8);
+            z-index: 20; text-transform: uppercase;
         }
-        .event-sub {
-            display: block; font-size: 12px; font-weight: 300; letter-spacing: 5px;
-            color: var(--accent); text-transform: lowercase; margin-top: 5px;
+        #txt-evento { font-weight: 900; letter-spacing: 3px; text-shadow: 2px 2px 10px rgba(0,0,0,0.8); font-size: 18px; }
+        
+        /* O contador de gravação solicitado */
+        #recording-timer { 
+            font-size: 14px; color: #ff4444; font-weight: bold; 
+            margin-top: 5px; letter-spacing: 1px; display: none;
+            text-shadow: 1px 1px 5px rgba(0,0,0,1);
         }
 
         .controls-wrapper {
             position: absolute; bottom: 60px; width: 100%;
-            display: flex; align-items: center; justify-content: space-around;
-            z-index: 100;
+            display: flex; align-items: center; justify-content: space-around; z-index: 100;
         }
 
         .side-btn {
@@ -45,28 +42,16 @@
             cursor: pointer; font-size: 22px; backdrop-filter: blur(10px);
         }
 
-        .shutter-trigger { 
-            width: 85px; height: 85px; border-radius: 50%; 
-            background: transparent; border: 5px solid var(--accent); 
+        .shutter-trigger {
+            width: 85px; height: 85px; border-radius: 50%;
+            background: transparent; border: 5px solid var(--accent);
             cursor: pointer; position: relative; z-index: 105;
-            transition: transform 0.2s;
-        }
-        .shutter-trigger:active { transform: scale(0.9); }
-        .shutter-trigger::after {
-            content: ''; position: absolute; inset: -12px;
-            border-radius: 50%; border: 2px solid var(--accent);
-            animation: pulse-blue 1.5s infinite;
         }
 
-        @keyframes pulse-blue {
-            0% { transform: scale(1); opacity: 0.6; }
-            100% { transform: scale(1.4); opacity: 0; }
-        }
-
-        #status { position: fixed; inset: 0; display: none; background: rgba(14, 26, 37, 0.4); color: var(--text-main); font-size: 140px; align-items: center; justify-content: center; z-index: 200; font-weight: 900; text-shadow: 0 0 30px var(--accent); }
+        #status { position: fixed; inset: 0; display: none; background: rgba(0,0,0,0.5); font-size: 140px; align-items: center; justify-content: center; z-index: 200; font-weight: 900; text-shadow: 0 0 20px var(--accent); }
         
         #loading { 
-            position: fixed; inset: 0; display: none; background: var(--bg-deep); color: var(--text-main); 
+            position: fixed; inset: 0; display: none; background: var(--bg-deep);
             align-items: center; justify-content: center; z-index: 600; flex-direction: column; gap: 20px; 
         }
         .spinner { width: 60px; height: 60px; border: 5px solid rgba(105, 130, 158, 0.1); border-top: 5px solid var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
@@ -76,9 +61,9 @@
 <body>
 
     <div id="cam-container">
-        <div class="event-overlay">
-            <span id="txt-evento">AUTOGRAPH CAM</span>
-            <span class="event-sub">colecionando momentos</span>
+        <div class="event-header">
+            <div id="txt-evento">AUTOGRAPH CAM</div>
+            <div id="recording-timer">GRAVANDO: 10s</div>
         </div>
         
         <video id="preview" autoplay playsinline muted></video>
@@ -93,11 +78,7 @@
 
     <canvas id="canvas" width="720" height="1280" style="display:none;"></canvas>
     <div id="status"></div>
-    
-    <div id="loading">
-        <div class="spinner"></div>
-        <b style="letter-spacing: 3px; font-size: 12px; color: var(--accent);">PROCESSANDO VÍDEO...</b>
-    </div>
+    <div id="loading"><div class="spinner"></div><b>PROCESSANDO...</b></div>
 
 <script>
     const WORKER_URL = "https://autographcam.maxprimefotovideo.workers.dev";
@@ -106,123 +87,125 @@
     const ctx = canvas.getContext('2d');
     const btn = document.getElementById('btn-shoot');
     const view = document.getElementById('moldura-view');
+    const timerDisplay = document.getElementById('recording-timer');
     
-    let currentStream;
-    let useFrontCamera = false;
-    let gravando = false;
-    let animationId;
+    let currentStream, useFrontCamera = false, isRecording = false;
     const molduraImg = new Image();
     molduraImg.crossOrigin = "anonymous"; 
 
     async function startCamera() {
-        if (currentStream) currentStream.getTracks().forEach(track => track.stop());
-        const constraints = {
-            video: { facingMode: useFrontCamera ? "user" : "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
-            audio: false
-        };
+        if (currentStream) currentStream.getTracks().forEach(t => t.stop());
         try {
-            currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+            currentStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: useFrontCamera ? "user" : "environment", width: 1280, height: 720 },
+                audio: false
+            });
             video.srcObject = currentStream;
-            video.play();
         } catch (e) { alert("Erro ao acessar câmera."); }
     }
 
-    function toggleCamera() {
-        useFrontCamera = !useFrontCamera;
-        startCamera();
-    }
+    function toggleCamera() { useFrontCamera = !useFrontCamera; startCamera(); }
 
     window.onload = () => {
         const config = JSON.parse(localStorage.getItem('config_atual'));
         if (config) {
-            document.getElementById('txt-evento').innerText = (config.nome || "AUTOGRAPH CAM").replace(/_/g, ' ');
-            
-            // Busca a moldura dentro da "pasta" do evento no R2
-            // O caminho esperado agora é: nome_evento/moldura.png
-            const nomeEventoPasta = (config.id_fixo || config.nome).replace(/\s+/g, '_');
-            const urlFinal = `${WORKER_URL}/stream?id=${nomeEventoPasta}/moldura.png`;
-            
-            molduraImg.src = urlFinal;
-            view.src = urlFinal;
+            document.getElementById('txt-evento').innerText = config.nome || "AUTOGRAPH CAM";
+            const pasta = (config.id_fixo || config.nome).replace(/\s+/g, '_');
+            const url = `${WORKER_URL}/stream?id=${pasta}/moldura.png`;
+            molduraImg.src = url;
+            view.src = url;
             molduraImg.onload = () => view.style.display = 'block';
-            molduraImg.onerror = () => console.log("Moldura não encontrada no caminho do evento.");
         }
         startCamera();
     };
 
     btn.onclick = () => {
-        if (gravando) return;
-        let c = 3;
+        if(isRecording) return;
+        let count = 3;
         const status = document.getElementById('status');
         status.style.display = 'flex';
-        status.innerText = c;
+        status.innerText = count;
         
-        let t = setInterval(() => {
-            c--;
-            if(c > 0) status.innerText = c;
+        let timer = setInterval(() => {
+            count--;
+            if(count > 0) status.innerText = count;
             else { 
-                clearInterval(t); 
+                clearInterval(timer); 
                 status.style.display = 'none'; 
-                iniciarGravacao(); 
+                iniciarFluxo(); 
             }
         }, 1000);
     };
 
-    function desenharLoop() {
-        if (!gravando) return;
-        ctx.save();
-        if (useFrontCamera) {
-            ctx.translate(canvas.width, 0);
-            ctx.scale(-1, 1);
-        }
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        ctx.restore();
-        if (molduraImg.complete) {
-            ctx.drawImage(molduraImg, 0, 0, canvas.width, canvas.height);
-        }
-        animationId = requestAnimationFrame(desenharLoop);
-    }
-
-    function iniciarGravacao() {
-        gravando = true;
+    function iniciarFluxo() {
+        isRecording = true;
         const chunks = [];
         const config = JSON.parse(localStorage.getItem('config_atual'));
-        const tempoSegundos = (config && config.tempo ? parseInt(config.tempo) : 10);
-        const nomeEvento = (config ? (config.id_fixo || config.nome) : "Geral").replace(/\s+/g, '_');
+        const tempoSegundos = config ? parseInt(config.tempo) : 10;
+        const pastaEvento = config ? (config.id_fixo || config.nome).replace(/\s+/g, '_') : "Geral";
 
+        // Prepara o desenho contínuo no canvas ANTES de iniciar o recorder
         const stream = canvas.captureStream(30);
-        const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8', videoBitsPerSecond: 5000000 });
         
+        // Tenta encontrar o melhor mimeType suportado
+        const types = ['video/webm;codecs=vp8', 'video/webm', 'video/mp4'];
+        let supportedType = types.find(t => MediaRecorder.isTypeSupported(t));
+
+        const recorder = new MediaRecorder(stream, { 
+            mimeType: supportedType,
+            videoBitsPerSecond: 2500000 
+        });
+
         recorder.ondataavailable = e => { if(e.data.size > 0) chunks.push(e.data); };
+
         recorder.onstop = async () => {
-            gravando = false;
-            cancelAnimationFrame(animationId);
+            isRecording = false;
+            timerDisplay.style.display = 'none';
             document.getElementById('loading').style.display = 'flex';
-            enviarVideo(chunks, nomeEvento);
+            
+            const blob = new Blob(chunks, { type: supportedType });
+            const fd = new FormData();
+            fd.append("video", blob);
+            fd.append("uuid", `vid_${Date.now()}.webm`);
+            fd.append("evento", pastaEvento);
+
+            try {
+                const res = await fetch(`${WORKER_URL}/upload`, { method: "POST", body: fd });
+                if(res.ok) window.location.href = "galeria.html";
+                else throw new Error();
+            } catch (err) {
+                alert("Erro no upload. Verifique sua conexão.");
+                document.getElementById('loading').style.display = 'none';
+            }
         };
 
-        desenharLoop();
-        recorder.start();
-        setTimeout(() => { if(recorder.state === "recording") recorder.stop(); }, tempoSegundos * 1000);
-    }
-
-    async function enviarVideo(chunks, nomeEvento) {
-        const blob = new Blob(chunks, { type: 'video/webm' });
-        const fd = new FormData();
-        fd.append("video", blob);
-        // O UUID agora inclui o prefixo da pasta
-        fd.append("uuid", `${nomeEvento}/video_${Date.now()}.webm`);
-        fd.append("evento", nomeEvento); 
-
-        try {
-            const res = await fetch(`${WORKER_URL}/upload`, { method: "POST", body: fd });
-            if(res.ok) {
-                window.location.href = `galeria.html?evento=${nomeEvento}`;
-            } else {
-                alert("Erro no upload.");
+        // Loop de Renderização
+        function draw() {
+            if(!isRecording) return;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            if (molduraImg.complete) {
+                ctx.drawImage(molduraImg, 0, 0, canvas.width, canvas.height);
             }
-        } catch (err) { alert("Erro de conexão."); }
-        document.getElementById('loading').style.display = 'none';
+            requestAnimationFrame(draw);
+        }
+
+        // Inicia
+        recorder.start();
+        draw();
+
+        // Gerencia o contador de 10s na tela
+        let tempoRestante = tempoSegundos;
+        timerDisplay.style.display = 'block';
+        timerDisplay.innerText = `GRAVANDO: ${tempoRestante}s`;
+
+        let countdown = setInterval(() => {
+            tempoRestante--;
+            timerDisplay.innerText = `GRAVANDO: ${tempoRestante}s`;
+            if(tempoRestante <= 0) {
+                clearInterval(countdown);
+                if(recorder.state === "recording") recorder.stop();
+            }
+        }, 1000);
     }
 </script>
 </body>
