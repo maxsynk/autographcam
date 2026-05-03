@@ -164,7 +164,6 @@
     }
 
     function gerarIdFixo(valor) {
-        // Só gera ID fixo se não estiver editando um evento já existente
         if(!document.getElementById('conf-id').value) {
             document.getElementById('conf-id-fixo').value = sanitizarPasta(valor);
         }
@@ -175,25 +174,27 @@
         if (editData) {
             const ev = JSON.parse(editData);
             document.getElementById('conf-id').value = ev.id || "";
-            document.getElementById('conf-id-fixo').value = ev.id_fixo || sanitizarPasta(ev.nome); 
-            document.getElementById('conf-nome').value = ev.nome || "";
-            document.getElementById('conf-data').value = ev.data || "";
+            document.getElementById('conf-id-fixo').value = ev.evento_id || ev.id_fixo || sanitizarPasta(ev.nome); 
+            document.getElementById('conf-nome').value = ev.nome_visual || ev.nome || "";
+            document.getElementById('conf-data').value = ev.data_evento || ev.data || "";
             
-            if(ev.musicaUrl) {
-                document.getElementById('conf-musica-url').value = ev.musicaUrl;
-                document.getElementById('conf-musica-name').value = ev.musicaName || "";
+            if(ev.musica_url || ev.musicaUrl) {
+                const mUrl = ev.musica_url || ev.musicaUrl;
+                document.getElementById('conf-musica-url').value = mUrl;
+                document.getElementById('conf-musica-name').value = ev.musicaName || "musica_evento.mp3";
                 document.getElementById('music-filename-display').innerText = ev.musicaName || "Arquivo carregado";
                 document.getElementById('music-status-text').innerText = "🎵 MÚSICA CONFIGURADA";
-                player.src = `${WORKER_URL}/stream?id=${ev.musicaUrl}`;
+                player.src = `${WORKER_URL}/stream?id=${mUrl}`;
                 player.style.display = "block";
-                const totalSeconds = parseInt(ev.musicaTrim) || 0;
+                const totalSeconds = parseInt(ev.musica_trim || ev.musicaTrim) || 0;
                 document.getElementById('trim-min').value = Math.floor(totalSeconds / 60);
                 document.getElementById('trim-sec').value = totalSeconds % 60;
             }
 
-            if(ev.molduraUrl) {
-                document.getElementById('conf-moldura-url').value = ev.molduraUrl;
-                document.getElementById('frame-preview').src = `${WORKER_URL}/stream?id=${ev.molduraUrl}`; 
+            if(ev.moldura_url || ev.molduraUrl) {
+                const fUrl = ev.moldura_url || ev.molduraUrl;
+                document.getElementById('conf-moldura-url').value = fUrl;
+                document.getElementById('frame-preview').src = `${WORKER_URL}/stream?id=${fUrl}`; 
                 document.getElementById('frame-preview').style.display = "block";
                 document.getElementById('upload-label').innerText = "📸 MOLDURA OK";
             }
@@ -234,6 +235,7 @@
 
         const formData = new FormData();
         formData.append("file", file);
+        // O uuid é o nome do arquivo. O Worker vai concatenar com a pasta do evento.
         const fileName = tipo === 'MOLDURA' ? `moldura_principal.png` : `musica_evento.mp3`;
         formData.append("uuid", fileName); 
         formData.append("evento", idPasta);
@@ -242,7 +244,9 @@
             const res = await fetch(`${WORKER_URL}/upload`, { method: 'POST', body: formData });
             if(!res.ok) throw new Error("Erro no servidor");
 
+            // O caminho final no R2 e no Banco será: idPasta/fileName
             const pathRelativo = `${idPasta}/${fileName}`;
+            
             if(tipo === 'MOLDURA') {
                 document.getElementById('conf-moldura-url').value = pathRelativo;
                 document.getElementById('frame-preview').src = `${WORKER_URL}/stream?id=${pathRelativo}&t=${Date.now()}`;
@@ -266,7 +270,6 @@
         const nomeVisual = document.getElementById('conf-nome').value.trim();
         if(!nomeVisual) return alert("Digite o nome do evento.");
 
-        // Força a sanitização do ID Fixo antes de salvar
         const idFixo = document.getElementById('conf-id-fixo').value || sanitizarPasta(nomeVisual);
 
         const config = {
