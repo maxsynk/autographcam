@@ -52,7 +52,7 @@
             display: grid; grid-template-columns: 1fr 100px; gap: 10px;
         }
         
-        .event-card.active-border { border-color: var(--accent); background: rgba(105, 130, 158, 0.05); }
+        .event-card.active-border { border-color: var(--accent); background: rgba(105, 130, 158, 0.1); box-shadow: 0 0 15px rgba(105, 130, 158, 0.2); }
         .event-info h4 { margin: 0; color: var(--text-main); text-transform: uppercase; font-size: 18px; line-height: 1.2; }
         .event-info span { font-size: 11px; color: var(--text-dim); display: block; margin-top: 4px; }
 
@@ -63,13 +63,14 @@
             font-size: 40px; cursor: pointer; transition: 0.2s;
             grid-row: span 2;
         }
+        .btn-camera-main:disabled { background: #1C2C3C; color: #4A5A6A; cursor: not-allowed; }
 
         .group-actions-row { display: flex; gap: 8px; width: 100%; margin-top: 12px; }
         .status-btn {
             flex: 2; padding: 12px; border-radius: 10px; font-size: 10px; font-weight: 900;
             cursor: pointer; text-transform: uppercase; border: none;
         }
-        .btn-is-on { background: var(--accent); color: var(--text-main); }
+        .btn-is-on { background: #2ECC71; color: #fff; } /* Verde para Ativado */
         .btn-is-off { background: #0A121A; color: #4A5A6A; border: 1px solid #1C2C3C; }
 
         .btn-edit-big { flex: 1.5; background: #2A3A4A; color: #fff; border: 1px solid #3A4A5A; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 10px; }
@@ -113,7 +114,7 @@
     </div>
 
 <script>
-    const SENHA_MESTRA = ""; // Sua senha
+    const SENHA_MESTRA = "1234"; 
     const WORKER_URL = "https://autographcam.maxprimefotovideo.workers.dev";
 
     window.onload = () => { if(sessionStorage.getItem('logado') === 'true') liberarSistema(); }
@@ -144,22 +145,24 @@
         navigator.clipboard.writeText(link).then(() => { alert("Link copiado!"); });
     }
 
-    // Função central de mapeamento para garantir que todos os dados cheguem à camera.html e config_evento.html
     function prepararDadosEvento(ev) {
         return {
             id: ev.id,
-            id_fixo: ev.evento_id,
+            id_fixo: ev.evento_id, // Este é o nome da pasta no R2
             nome: ev.nome_visual,
             data: ev.data_evento,
             musicaUrl: ev.musica_url,
             molduraUrl: ev.moldura_url,
-            musicaTrim: ev.musica_trim
+            musicaTrim: ev.musica_trim || "0"
         };
     }
 
     function irParaCamera(evRaw) {
         const dados = prepararDadosEvento(evRaw);
+        // Garante que o evento clicado seja o ativo antes de abrir a câmera
         localStorage.setItem('config_atual', JSON.stringify(dados));
+        // Remove sinalizadores de animação antiga que possam estar no localStorage
+        localStorage.removeItem('camera_overlay_active'); 
         window.location.href = 'camera.html';
     }
 
@@ -170,10 +173,17 @@
     }
 
     function alternarAtivacao(evRaw) {
-        const dados = prepararDadosEvento(evRaw);
-        // Salva como o evento ativo do sistema
-        localStorage.setItem('config_atual', JSON.stringify(dados));
-        renderEventos(); // Atualiza a interface para mostrar a borda e o botão "ATIVADO"
+        const eventoClicado = prepararDadosEvento(evRaw);
+        const atual = JSON.parse(localStorage.getItem('config_atual'));
+
+        if (atual && atual.id === eventoClicado.id) {
+            // Se clicar no que já está ativo, ele DESATIVA (Bloqueia)
+            localStorage.removeItem('config_atual');
+        } else {
+            // Se clicar em um novo, ele ATIVA este e desativa qualquer outro
+            localStorage.setItem('config_atual', JSON.stringify(eventoClicado));
+        }
+        renderEventos();
     }
 
     async function renderEventos() {
@@ -193,10 +203,7 @@
             eventos.forEach((ev) => {
                 const nomeExibicao = ev.nome_visual || ev.evento_id || "Evento Sem Nome";
                 const idPasta = ev.evento_id; 
-
-                // Lógica de ativação baseada no ID do banco
                 const estaAtivo = eventoAtivoConfig && (eventoAtivoConfig.id === ev.id);
-
                 const evDataRaw = JSON.stringify(ev).replace(/"/g, '&quot;');
                 
                 const card = document.createElement('div');
@@ -215,33 +222,29 @@
                             <button class="btn-del-big" onclick="excluirEvento('${ev.id}', '${idPasta}')">×</button>
                         </div>
                     </div>
-                    <button class="btn-camera-main" onclick="irParaCamera(${evDataRaw})">📸</button>
+                    <button class="btn-camera-main" ${estaAtivo ? '' : 'disabled'} onclick="irParaCamera(${evDataRaw})" title="${estaAtivo ? 'Abrir Câmera' : 'Ative o evento primeiro'}">
+                        📸
+                    </button>
                 `;
                 container.appendChild(card);
             });
         } catch (err) { 
-            container.innerHTML = `<p style="color: #ff5555; text-align:center;">Erro ao carregar eventos do servidor.</p>`; 
+            container.innerHTML = `<p style="color: #ff5555; text-align:center;">Erro ao carregar eventos.</p>`; 
         }
     }
 
     async function excluirEvento(id, nomePasta) {
-        if(confirm(`ATENÇÃO: Apagar evento e todos os arquivos?`)) {
+        if(confirm(`ATENÇÃO: Apagar evento e arquivos?`)) {
             try { 
-                const res = await fetch(`${WORKER_URL}/deletar-evento-completo`, {
+                await fetch(`${WORKER_URL}/deletar-evento-completo`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ id: id, evento: nomePasta })
                 });
-                
-                if(res.ok) {
-                    alert("Evento excluído com sucesso!");
-                    renderEventos(); 
-                } else {
-                    alert("Erro ao excluir do servidor.");
-                }
-            } catch (e) { 
-                alert("Erro de conexão ao deletar."); 
-            }
+                const atual = JSON.parse(localStorage.getItem('config_atual'));
+                if (atual && atual.id == id) localStorage.removeItem('config_atual');
+                renderEventos();
+            } catch (e) { alert("Erro ao deletar."); }
         }
     }
 
