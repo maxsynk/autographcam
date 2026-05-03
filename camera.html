@@ -136,13 +136,16 @@
         const config = JSON.parse(localStorage.getItem('config_atual'));
         if (config) {
             document.getElementById('txt-evento').innerText = (config.nome || "AUTOGRAPH CAM").replace(/_/g, ' ');
-            let molduraPath = config.molduraUrl || config.moldura;
-            if (molduraPath) {
-                const urlFinal = `${WORKER_URL}/stream?id=${molduraPath.includes('id=') ? molduraPath.split('id=')[1] : molduraPath}`;
-                molduraImg.src = urlFinal;
-                view.src = urlFinal;
-                molduraImg.onload = () => view.style.display = 'block';
-            }
+            
+            // Busca a moldura dentro da "pasta" do evento no R2
+            // O caminho esperado agora é: nome_evento/moldura.png
+            const nomeEventoPasta = (config.id_fixo || config.nome).replace(/\s+/g, '_');
+            const urlFinal = `${WORKER_URL}/stream?id=${nomeEventoPasta}/moldura.png`;
+            
+            molduraImg.src = urlFinal;
+            view.src = urlFinal;
+            molduraImg.onload = () => view.style.display = 'block';
+            molduraImg.onerror = () => console.log("Moldura não encontrada no caminho do evento.");
         }
         startCamera();
     };
@@ -167,7 +170,6 @@
 
     function desenharLoop() {
         if (!gravando) return;
-
         ctx.save();
         if (useFrontCamera) {
             ctx.translate(canvas.width, 0);
@@ -175,11 +177,9 @@
         }
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         ctx.restore();
-        
         if (molduraImg.complete) {
             ctx.drawImage(molduraImg, 0, 0, canvas.width, canvas.height);
         }
-
         animationId = requestAnimationFrame(desenharLoop);
     }
 
@@ -188,15 +188,12 @@
         const chunks = [];
         const config = JSON.parse(localStorage.getItem('config_atual'));
         const tempoSegundos = (config && config.tempo ? parseInt(config.tempo) : 10);
-        
-        const nomeEventoRaw = config ? (config.id_fixo || config.nome) : "Geral";
-        const nomeEvento = nomeEventoRaw.replace(/\s+/g, '_');
+        const nomeEvento = (config ? (config.id_fixo || config.nome) : "Geral").replace(/\s+/g, '_');
 
         const stream = canvas.captureStream(30);
         const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8', videoBitsPerSecond: 5000000 });
         
         recorder.ondataavailable = e => { if(e.data.size > 0) chunks.push(e.data); };
-        
         recorder.onstop = async () => {
             gravando = false;
             cancelAnimationFrame(animationId);
@@ -206,33 +203,25 @@
 
         desenharLoop();
         recorder.start();
-
-        setTimeout(() => {
-            if(recorder.state === "recording") recorder.stop();
-        }, tempoSegundos * 1000);
+        setTimeout(() => { if(recorder.state === "recording") recorder.stop(); }, tempoSegundos * 1000);
     }
 
     async function enviarVideo(chunks, nomeEvento) {
         const blob = new Blob(chunks, { type: 'video/webm' });
         const fd = new FormData();
         fd.append("video", blob);
-        fd.append("uuid", `autograph_${Date.now()}.webm`);
+        // O UUID agora inclui o prefixo da pasta
+        fd.append("uuid", `${nomeEvento}/video_${Date.now()}.webm`);
         fd.append("evento", nomeEvento); 
 
         try {
-            const res = await fetch(`${WORKER_URL}/upload`, { 
-                method: "POST", 
-                body: fd 
-            });
-            
+            const res = await fetch(`${WORKER_URL}/upload`, { method: "POST", body: fd });
             if(res.ok) {
                 window.location.href = `galeria.html?evento=${nomeEvento}`;
             } else {
-                alert("Erro no upload do vídeo.");
+                alert("Erro no upload.");
             }
-        } catch (err) { 
-            alert("Erro de conexão com o servidor."); 
-        }
+        } catch (err) { alert("Erro de conexão."); }
         document.getElementById('loading').style.display = 'none';
     }
 </script>
