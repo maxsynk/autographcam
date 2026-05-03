@@ -159,33 +159,36 @@
 
             container.innerHTML = '';
             eventos.forEach((ev) => {
-                const nomeSanitizado = ev.nome.replace(/\s+/g, '_').toLowerCase();
-                const estaAtivo = eventoAtivoConfig && (
-                    eventoAtivoConfig.id === ev.id || 
-                    eventoAtivoConfig.nome.replace(/\s+/g, '_').toLowerCase() === nomeSanitizado
-                );
+    // Agora usamos nome_visual que salvamos no banco
+    const nomeExibicao = ev.nome_visual || ev.evento_id || "Evento sem nome";
+    const nomeSanitizado = ev.evento_id; // id_fixo usado nas pastas
+    
+    const estaAtivo = eventoAtivoConfig && (
+        eventoAtivoConfig.id === ev.id || 
+        eventoAtivoConfig.id_fixo === ev.evento_id
+    );
 
-                const evData = JSON.stringify(ev).replace(/"/g, '&quot;');
-                const card = document.createElement('div');
-                card.className = `event-card ${estaAtivo ? 'active-border' : ''}`;
-                card.innerHTML = `
-                    <div class="event-info-col">
-                        <div class="event-info">
-                            <h4>${ev.nome.replace(/_/g, ' ')}</h4>
-                            <span>EVENTO NO SISTEMA</span>
-                        </div>
-                        <div class="group-actions-row">
-                            <button class="status-btn ${estaAtivo ? 'btn-is-on' : 'btn-is-off'}" onclick='alternarAtivacao(${evData})'>
-                                ${estaAtivo ? '● SELECIONADO' : 'SELECIONAR'}
-                            </button>
-                            <button class="btn-edit-big" onclick='irParaEditar(${evData})'>CONFIG</button>
-                            <button class="btn-del-big" onclick="excluirEvento('${ev.id}', '${ev.nome}')">×</button>
-                        </div>
-                    </div>
-                    <button class="btn-camera-main" onclick="irParaCamera(${evData})">📸</button>
-                `;
-                container.appendChild(card);
-            });
+    const evData = JSON.stringify(ev).replace(/"/g, '&quot;');
+    const card = document.createElement('div');
+    card.className = `event-card ${estaAtivo ? 'active-border' : ''}`;
+    card.innerHTML = `
+        <div class="event-info-col">
+            <div class="event-info">
+                <h4>${nomeExibicao.replace(/_/g, ' ')}</h4>
+                <span>ID: ${ev.evento_id}</span>
+            </div>
+            <div class="group-actions-row">
+                <button class="status-btn ${estaAtivo ? 'btn-is-on' : 'btn-is-off'}" onclick='alternarAtivacao(${evData})'>
+                    ${estaAtivo ? '● SELECIONADO' : 'SELECIONAR'}
+                </button>
+                <button class="btn-edit-big" onclick='irParaEditar(${evData})'>CONFIG</button>
+                <button class="btn-del-big" onclick="excluirEvento('${ev.id}', '${ev.evento_id}')">×</button>
+            </div>
+        </div>
+        <button class="btn-camera-main" onclick="irParaCamera(${evData})">📸</button>
+    `;
+    container.appendChild(card);
+});
         } catch (err) { 
             container.innerHTML = `<p style="color: #ff5555; text-align:center;">Erro ao carregar eventos do servidor.</p>`; 
         }
