@@ -36,7 +36,6 @@
         .subtitle { font-size: 11px; letter-spacing: 4px; opacity: 0.9; margin-top: 2px; text-transform: uppercase; color: var(--accent); }
         .admin-label { font-size: 14px; color: var(--accent); letter-spacing: 2px; margin-top: 5px; font-weight: bold; }
 
-        /* Botão Hamburger */
         .menu-icon {
             position: absolute;
             top: 25px;
@@ -49,7 +48,6 @@
         }
         .menu-icon div { width: 25px; height: 3px; background: var(--accent); border-radius: 2px; transition: 0.3s; }
 
-        /* Painel do Submenu */
         .admin-tools { 
             position: absolute;
             top: 70px;
@@ -166,7 +164,8 @@
     </div>
 
 <script>
-    const WORKER_URL = "https://photomovie.maxprimefotovideo.workers.dev";
+    // URL CORRIGIDA
+    const WORKER_URL = "https://autographcam.maxprimefotovideo.workers.dev";
     let listaFinais = [];
     let idPastaFixo = ""; 
 
@@ -176,7 +175,7 @@
         document.getElementById('nome-evento-titulo').innerText = (config.nome || "").replace(/_/g, ' ');
         idPastaFixo = config.id_fixo || config.nome; 
         carregarArquivos();
-        setInterval(carregarArquivos, 3000);
+        setInterval(carregarArquivos, 5000); // Aumentado para 5s para economizar request
     };
 
     function toggleMenu() {
@@ -188,7 +187,9 @@
         try {
             const res = await fetch(`${WORKER_URL}/listar-galeria?evento=${encodeURIComponent(idPastaFixo)}`);
             const dados = await res.json();
-            const novosFinais = dados.filter(f => f.path.includes('autograph_') || f.path.includes('final_'));
+            // Filtra apenas os vídeos processados (finais)
+            const novosFinais = dados.filter(f => f.path.toLowerCase().includes('autograph_') || f.path.toLowerCase().includes('final_'));
+            
             if (JSON.stringify(novosFinais) !== JSON.stringify(listaFinais)) {
                 listaFinais = novosFinais;
                 renderizarGaleria();
@@ -200,7 +201,7 @@
         const container = document.getElementById('gallery-container');
         container.innerHTML = "";
         if (listaFinais.length === 0) {
-            container.innerHTML = "<p style='grid-column: 1/-1; opacity:0.5; margin-top:50px;'>Nenhum vídeo encontrado.</p>";
+            container.innerHTML = "<p style='grid-column: 1/-1; opacity:0.5; margin-top:50px;'>Nenhum vídeo processado encontrado.</p>";
             return;
         }
         listaFinais.forEach((file, index) => {
@@ -240,32 +241,44 @@
     }
 
     async function excluirArquivo(path) {
-        if(!confirm("Excluir vídeo?")) return;
-        await fetch(`${WORKER_URL}/deletar`, { method: 'POST', body: JSON.stringify({ id: path, evento: idPastaFixo }) });
-        carregarArquivos();
+        if(!confirm("Excluir vídeo permanentemente?")) return;
+        try {
+            await fetch(`${WORKER_URL}/deletar`, { 
+                method: 'POST', 
+                body: JSON.stringify({ id: path, evento: idPastaFixo }) 
+            });
+            carregarArquivos();
+        } catch (e) { alert("Erro ao excluir."); }
     }
 
     async function excluirTudo() {
-        if(prompt("Digite 'apagar':") !== 'apagar') return;
+        if(prompt("Digite 'apagar' para confirmar a exclusão de TODA a galeria:") !== 'apagar') return;
         for(let f of listaFinais) {
             await fetch(`${WORKER_URL}/deletar`, { method: 'POST', body: JSON.stringify({ id: f.path, evento: idPastaFixo }) });
         }
         carregarArquivos();
+        toggleMenu();
     }
 
     async function baixarTudoZip() {
         const btn = document.querySelector('.btn-zip');
         const originalText = btn.innerText;
         btn.innerText = "⏳ PROCESSANDO...";
-        const zip = new JSZip();
-        for(let i = 0; i < listaFinais.length; i++) {
-            const res = await fetch(`${WORKER_URL}/stream?id=${encodeURIComponent(listaFinais[i].path)}`);
-            zip.file(`video_${i+1}.mp4`, await res.blob());
+        try {
+            const zip = new JSZip();
+            for(let i = 0; i < listaFinais.length; i++) {
+                const res = await fetch(`${WORKER_URL}/stream?id=${encodeURIComponent(listaFinais[i].path)}`);
+                const blob = await res.blob();
+                zip.file(`video_${i+1}.mp4`, blob);
+            }
+            const content = await zip.generateAsync({type:"blob"});
+            saveAs(content, `Galeria_${idPastaFixo}.zip`);
+        } catch (e) {
+            alert("Erro ao gerar ZIP.");
+        } finally {
+            btn.innerText = originalText;
+            toggleMenu();
         }
-        const content = await zip.generateAsync({type:"blob"});
-        saveAs(content, `Galeria_Admin_${idPastaFixo}.zip`);
-        btn.innerText = originalText;
-        toggleMenu();
     }
 
     async function forcarDownload(url, filename) {
