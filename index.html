@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>CENTRAL - AUTOGRAPH CAM</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <style>
         :root { 
             --bg-deep: #0E1A25;
@@ -94,7 +93,6 @@
         <a href="config_evento.html" id="btn-create" class="btn-protected btn-central" onclick="localStorage.removeItem('evento_para_editar')">➕ CRIAR NOVO EVENTO</a>
         <a href="galeria_admin.html" id="btn-admin" class="btn-protected btn-central">👑 GALERIA ADMIN</a>
         <a href="galeria.html" id="btn-galeria" class="btn-protected btn-central">🎞️ ABRIR GALERIA</a>
-        
         <button id="btn-copy-link" class="btn-protected btn-central" onclick="copiarLinkCliente()">🔗 COPIAR LINK CLIENTE</button>
         
         <div id="container-eventos" class="event-list-container">
@@ -116,7 +114,6 @@
 
 <script>
     const SENHA_MESTRA = "1234"; 
-    // ATUALIZADO PARA O NOVO SUBDOMÍNIO
     const WORKER_URL = "https://autographcam.maxprimefotovideo.workers.dev";
 
     window.onload = () => { if(sessionStorage.getItem('logado') === 'true') liberarSistema(); }
@@ -143,7 +140,6 @@
         const config = JSON.parse(localStorage.getItem('config_atual'));
         if (!config) { alert("Ative um evento primeiro!"); return; }
         const idEvento = config.id_fixo || config.nome;
-        // ATUALIZADO PARA O REPOSITÓRIO CORRETO
         const link = `https://maxsynk.github.io/autographcam/galeria.html?evento=${encodeURIComponent(idEvento)}`;
         navigator.clipboard.writeText(link).then(() => { alert("Link copiado!"); });
     }
@@ -153,18 +149,16 @@
         const eventoAtivoConfig = JSON.parse(localStorage.getItem('config_atual'));
 
         try {
-            // Adicionado timestamp para evitar cache do navegador
             const res = await fetch(`${WORKER_URL}/listar-eventos?t=${Date.now()}`);
             const eventos = await res.json();
             
             if(!eventos || eventos.length === 0) { 
-                container.innerHTML = '<p style="text-align:center; opacity:0.5; margin-top:20px;">Sem eventos no banco de dados.</p>'; 
+                container.innerHTML = '<p style="text-align:center; opacity:0.5; margin-top:20px;">Sem eventos cadastrados.</p>'; 
                 return; 
             }
 
             container.innerHTML = '';
             eventos.forEach((ev) => {
-                // Verificação flexível: checa ID ou Nome (ignorando se é espaço ou underline)
                 const nomeSanitizado = ev.nome.replace(/\s+/g, '_').toLowerCase();
                 const estaAtivo = eventoAtivoConfig && (
                     eventoAtivoConfig.id === ev.id || 
@@ -178,11 +172,11 @@
                     <div class="event-info-col">
                         <div class="event-info">
                             <h4>${ev.nome.replace(/_/g, ' ')}</h4>
-                            <span>EVENTO DISPONÍVEL</span>
+                            <span>EVENTO NO SISTEMA</span>
                         </div>
                         <div class="group-actions-row">
                             <button class="status-btn ${estaAtivo ? 'btn-is-on' : 'btn-is-off'}" onclick='alternarAtivacao(${evData})'>
-                                ${estaAtivo ? '● ATIVO' : 'ATIVAR'}
+                                ${estaAtivo ? '● SELECIONADO' : 'SELECIONAR'}
                             </button>
                             <button class="btn-edit-big" onclick='irParaEditar(${evData})'>CONFIG</button>
                             <button class="btn-del-big" onclick="excluirEvento('${ev.id}', '${ev.nome}')">×</button>
@@ -193,14 +187,13 @@
                 container.appendChild(card);
             });
         } catch (err) { 
-            console.error(err);
-            container.innerHTML = `<p style="color: #ff5555; text-align:center;">Erro ao conectar com o servidor.</p>`; 
+            container.innerHTML = `<p style="color: #ff5555; text-align:center;">Erro ao carregar eventos do servidor.</p>`; 
         }
     }
 
     function irParaEditar(evento) {
         localStorage.setItem('evento_para_editar', JSON.stringify(evento));
-        window.location.href = `config_evento.html?id=${evento.id}`;
+        window.location.href = `config_evento.html`;
     }
 
     function alternarAtivacao(evento) {
@@ -214,7 +207,7 @@
     }
 
     async function excluirEvento(id, nome) {
-        if(confirm(`ATENÇÃO: Apagar evento ${nome} e arquivos?`)) {
+        if(confirm(`ATENÇÃO: Apagar evento ${nome.replace(/_/g, ' ')} e todos os vídeos dele?`)) {
             try { 
                 await fetch(`${WORKER_URL}/deletar-evento-completo`, {
                     method: 'POST',
@@ -222,7 +215,7 @@
                     body: JSON.stringify({ id: id, evento: nome })
                 });
                 renderEventos(); 
-            } catch (e) { alert("Erro de conexão."); }
+            } catch (e) { alert("Erro ao deletar."); }
         }
     }
 
