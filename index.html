@@ -195,7 +195,7 @@
 }
 
 async function excluirEvento(id, nomePasta) {
-    if(confirm(`ATENÇÃO: Apagar evento e todos os arquivos (R2 e Banco)?`)) {
+    if(confirm(`ATENÇÃO: Apagar evento e todos os arquivos?`)) {
         try { 
             const res = await fetch(`${WORKER_URL}/deletar-evento-completo`, {
                 method: 'POST',
