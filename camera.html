@@ -3,121 +3,127 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AUTOGRAPH CAM - Gravando</title>
+    <title>AUTOGRAPH CAM</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        #video-preview { transform: scaleX(-1); width: 100%; height: 100vh; object-fit: cover; }
-        .contador { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 120px; color: white; font-weight: bold; text-shadow: 2px 2px 10px rgba(0,0,0,0.8); display: none; z-index: 50; }
+        #video-preview { width: 100%; height: 100vh; object-fit: cover; }
+        .contador-overlay { 
+            position: absolute; top: 20%; left: 50%; transform: translateX(-50%); 
+            font-size: 80px; color: #ff0000; font-weight: 900; 
+            text-shadow: 0 0 20px #000; z-index: 100; display: none;
+        }
     </style>
 </head>
-<body class="bg-black overflow-hidden h-screen flex flex-col">
+<body class="bg-black h-screen overflow-hidden">
 
-    <!-- Preview da Câmera -->
+    <div id="contador" class="contador-overlay">0s</div>
+    
     <video id="video-preview" autoplay playsinline muted></video>
 
-    <!-- Contador Progressivo -->
-    <div id="contador-display" class="contador">0s</div>
+    <div class="absolute bottom-10 w-full flex justify-center z-50">
+        <button id="btn-record" onclick="controleGravacao()" class="bg-white p-2 rounded-full shadow-2xl">
+            <div id="btn-inner" class="w-16 h-16 bg-red-600 rounded-full border-4 border-gray-200"></div>
+        </button>
+    </div>
 
-    <!-- Botão de Ação -->
-    <div class="absolute bottom-10 w-full flex justify-center items-center px-10 z-40">
-        <button id="btn-record" onclick="iniciarGravacao()" class="bg-red-600 text-white w-20 h-20 rounded-full border-4 border-white shadow-lg active:scale-90 transition-all"></button>
+    <div id="loading" class="fixed inset-0 bg-black/80 hidden flex-col items-center justify-center z-[200]">
+        <div class="w-12 h-12 border-4 border-t-red-600 border-gray-400 rounded-full animate-spin"></div>
+        <p class="text-white mt-4 font-bold">PROCESSANDO VÍDEO...</p>
     </div>
 
     <script>
+        const WORKER_URL = "https://autographcam.maxprimefotovideo.workers.dev";
+        const videoElement = document.getElementById('video-preview');
+        const displayContador = document.getElementById('contador');
+        const loader = document.getElementById('loading');
+        
         let mediaRecorder;
         let recordedChunks = [];
-        let timerInterval;
-        let tempoGravacao = 5; // Ajuste para o tempo que desejar
-        const urlParams = new URLSearchParams(window.location.search);
-        const eventoId = urlParams.get('evento');
-        const WORKER_URL = "https://autographcam.maxprimefotovideo.workers.dev";
+        let tempoTotal = 10; // Tempo fixo para teste
+        let streamPrincipal;
 
-        // Inicia o preview da câmera ao abrir a página
-        async function setupCamera() {
+        // Pega o ID do evento da URL
+        const params = new URLSearchParams(window.location.search);
+        const eventoId = params.get('evento') || "Geral";
+
+        async function init() {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "user", width: 1280, height: 720 }, 
+                streamPrincipal = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }, 
                     audio: true 
                 });
-                document.getElementById('video-preview').srcObject = stream;
-                window.localStream = stream;
+                videoElement.srcObject = streamPrincipal;
             } catch (err) {
-                alert("Erro ao acessar câmera: " + err);
+                alert("Câmera bloqueada ou não encontrada.");
             }
         }
 
-        async function iniciarGravacao() {
-            const btn = document.getElementById('btn-record');
-            const display = document.getElementById('contador-display');
-            
-            btn.disabled = true;
-            btn.classList.add('opacity-50', 'scale-75');
-            display.style.display = 'block';
-            
+        async function controleGravacao() {
+            document.getElementById('btn-record').disabled = true;
             recordedChunks = [];
-            let tempoAtual = 0;
-            display.innerText = "0s";
-
-            mediaRecorder = new MediaRecorder(window.localStream, { mimeType: 'video/webm;codecs=vp8' });
-
+            
+            // Configura o gravador
+            mediaRecorder = new MediaRecorder(streamPrincipal, { mimeType: 'video/webm;codecs=vp8' });
+            
             mediaRecorder.ondataavailable = (e) => {
                 if (e.data.size > 0) recordedChunks.push(e.data);
             };
 
             mediaRecorder.onstop = async () => {
-                const videoBlob = new Blob(recordedChunks, { type: 'video/webm' });
-                await enviarVideo(videoBlob);
+                loader.style.display = 'flex';
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                await enviarAoWorker(blob);
             };
 
             mediaRecorder.start();
+            rodarContador();
+        }
 
-            // Lógica do Contador e Parada Automática
-            timerInterval = setInterval(() => {
-                tempoAtual++;
-                display.innerText = tempoAtual + "s";
+        function rodarContador() {
+            let seg = 0;
+            displayContador.style.display = 'block';
+            displayContador.innerText = seg + "s";
+
+            let intervalo = setInterval(() => {
+                seg++;
+                displayContador.innerText = seg + "s";
                 
-                if (tempoAtual >= tempoGravacao) {
-                    finalizarGravacao();
+                if (seg >= tempoTotal) {
+                    clearInterval(intervalo);
+                    pararTudo();
                 }
             }, 1000);
         }
 
-        function finalizarGravacao() {
-            clearInterval(timerInterval);
+        function pararTudo() {
             if (mediaRecorder && mediaRecorder.state !== "inactive") {
                 mediaRecorder.stop();
             }
-            document.getElementById('contador-display').innerText = "Processando...";
-            // Pequeno delay para garantir que o blob foi gerado
+            displayContador.style.display = 'none';
         }
 
-        async function enviarVideo(blob) {
-            const uuid = "vid_" + Date.now() + ".webm";
-            const formData = new FormData();
-            formData.append('video', blob);
-            formData.append('uuid', uuid);
-            formData.append('evento', eventoId);
+        async function enviarAoWorker(blob) {
+            const nomeArquivo = `vid_${Date.now()}.webm`;
+            const fd = new FormData();
+            fd.append('video', blob);
+            fd.append('uuid', nomeArquivo);
+            fd.append('evento', eventoId);
 
             try {
-                const res = await fetch(`${WORKER_URL}/upload`, {
-                    method: 'POST',
-                    body: formData
-                });
-
+                const res = await fetch(`${WORKER_URL}/upload`, { method: 'POST', body: fd });
                 if (res.ok) {
-                    // Redireciona para a tela de "Obrigado" ou Galeria
                     window.location.href = `galeria.html?evento=${eventoId}`;
                 } else {
-                    alert("Erro ao enviar vídeo");
+                    alert("Erro no upload do Worker.");
+                    location.reload();
                 }
             } catch (err) {
-                console.error(err);
-                alert("Erro na conexão");
+                alert("Erro de conexão com o servidor.");
+                location.reload();
             }
         }
 
-        // Inicializa a câmera
-        setupCamera();
+        window.onload = init;
     </script>
 </body>
 </html>
