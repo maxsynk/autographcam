@@ -100,6 +100,7 @@
     </div>
 
 <script>
+    // URL Atualizada conforme o padrão do projeto
     const WORKER_URL = "https://autographcam.maxprimefotovideo.workers.dev";
     const video = document.getElementById('preview');
     const canvas = document.getElementById('canvas');
@@ -132,7 +133,8 @@
     window.onload = () => {
         const config = JSON.parse(localStorage.getItem('config_atual'));
         if (config) {
-            document.getElementById('txt-evento').innerText = config.nome.replace(/_/g, ' ') || "AUTOGRAPH CAM";
+            // Atualiza o nome conforme a correção oficial do sistema
+            document.getElementById('txt-evento').innerText = (config.nome || "AUTOGRAPH CAM").replace(/_/g, ' ');
             let molduraPath = config.molduraUrl || config.moldura;
             if (molduraPath) {
                 const urlFinal = `${WORKER_URL}/stream?id=${molduraPath.includes('id=') ? molduraPath.split('id=')[1] : molduraPath}`;
@@ -165,22 +167,31 @@
         const chunks = [];
         const config = JSON.parse(localStorage.getItem('config_atual'));
         const tempo = (config && config.tempo ? parseInt(config.tempo) : 10) * 1000;
-        // Pega o ID fixo ou o nome, limpando espaços
-        const nomeEvento = config ? (config.id_fixo || config.nome).replace(/\s+/g, '_') : "Geral";
+        
+        // Normalização do nome para evitar erros de upload
+        const nomeEventoRaw = config ? (config.id_fixo || config.nome) : "Geral";
+        const nomeEvento = nomeEventoRaw.replace(/\s+/g, '_');
 
         let recorder;
         const loop = () => {
             if (video.paused || video.ended) return;
             ctx.save();
+            
             if (useFrontCamera) {
+                ctx.translate(canvas.width, 0);
                 ctx.scale(-1, 1);
-                ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
-            } else {
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             }
+            
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             ctx.restore();
-            if (molduraImg.complete) ctx.drawImage(molduraImg, 0, 0, canvas.width, canvas.height);
-            if (recorder && recorder.state === "recording") requestAnimationFrame(loop);
+            
+            if (molduraImg.complete) {
+                ctx.drawImage(molduraImg, 0, 0, canvas.width, canvas.height);
+            }
+            
+            if (recorder && recorder.state === "recording") {
+                requestAnimationFrame(loop);
+            }
         };
 
         const stream = canvas.captureStream(30);
@@ -202,18 +213,23 @@
         const blob = new Blob(chunks, { type: 'video/webm' });
         const fd = new FormData();
         fd.append("video", blob);
-        fd.append("uuid", "autograph_" + Date.now() + ".webm");
+        fd.append("uuid", `autograph_${Date.now()}.webm`);
         fd.append("evento", nomeEvento); 
 
         try {
-            const res = await fetch(`${WORKER_URL}/upload`, { method: "POST", body: fd });
+            const res = await fetch(`${WORKER_URL}/upload`, { 
+                method: "POST", 
+                body: fd 
+            });
+            
             if(res.ok) {
-                window.location.href = `galeria.html?evento=${encodeURIComponent(nomeEvento)}`;
+                window.location.href = `galeria.html?evento=${nomeEvento}`;
             } else {
-                alert("Erro no servidor de upload.");
+                const erroTexto = await res.text();
+                alert("Erro no upload: " + erroTexto);
             }
         } catch (err) { 
-            alert("Erro de rede. Verifique sua conexão."); 
+            alert("Erro de conexão com o servidor. Tente novamente."); 
         }
         document.getElementById('loading').style.display = 'none';
     }
