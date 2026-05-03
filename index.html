@@ -233,20 +233,27 @@
         }
     }
 
-    async function excluirEvento(id, nomePasta) {
-        if(confirm(`ATENÇÃO: Apagar evento e arquivos?`)) {
-            try { 
-                await fetch(`${WORKER_URL}/deletar-evento-completo`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id: id, evento: nomePasta })
-                });
-                const atual = JSON.parse(localStorage.getItem('config_atual'));
-                if (atual && atual.id == id) localStorage.removeItem('config_atual');
-                renderEventos();
-            } catch (e) { alert("Erro ao deletar."); }
+    async function excluirEvento(eventoIdFixo) {
+    if (!confirm("Tem certeza que deseja apagar este evento e todos os registros dele?")) return;
+
+    try {
+        const res = await fetch(`${WORKER_URL}/deletar-evento`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ evento_id: String(eventoIdFixo) }) // Enviando o ID para o Worker
+        });
+
+        if (res.ok) {
+            alert("Evento removido!");
+            listarEventos(); // Recarrega a lista para sumir da tela
+        } else {
+            const erro = await res.json();
+            alert("Erro ao deletar: " + (erro.error || "Erro desconhecido"));
         }
+    } catch (e) {
+        alert("Erro de conexão ao tentar deletar.");
     }
+}
 
     function bloquear() { sessionStorage.removeItem('logado'); location.reload(); }
 </script>
