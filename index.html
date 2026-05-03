@@ -153,17 +153,24 @@
         const eventoAtivoConfig = JSON.parse(localStorage.getItem('config_atual'));
 
         try {
+            // Adicionado timestamp para evitar cache do navegador
             const res = await fetch(`${WORKER_URL}/listar-eventos?t=${Date.now()}`);
             const eventos = await res.json();
             
             if(!eventos || eventos.length === 0) { 
-                container.innerHTML = '<p style="text-align:center; opacity:0.5;">Sem eventos no momento.</p>'; 
+                container.innerHTML = '<p style="text-align:center; opacity:0.5; margin-top:20px;">Sem eventos no banco de dados.</p>'; 
                 return; 
             }
 
             container.innerHTML = '';
             eventos.forEach((ev) => {
-                const estaAtivo = eventoAtivoConfig && (eventoAtivoConfig.id === ev.id || eventoAtivoConfig.nome === ev.nome);
+                // Verificação flexível: checa ID ou Nome (ignorando se é espaço ou underline)
+                const nomeSanitizado = ev.nome.replace(/\s+/g, '_').toLowerCase();
+                const estaAtivo = eventoAtivoConfig && (
+                    eventoAtivoConfig.id === ev.id || 
+                    eventoAtivoConfig.nome.replace(/\s+/g, '_').toLowerCase() === nomeSanitizado
+                );
+
                 const evData = JSON.stringify(ev).replace(/"/g, '&quot;');
                 const card = document.createElement('div');
                 card.className = `event-card ${estaAtivo ? 'active-border' : ''}`;
@@ -171,13 +178,13 @@
                     <div class="event-info-col">
                         <div class="event-info">
                             <h4>${ev.nome.replace(/_/g, ' ')}</h4>
-                            <span>EVENTO ATIVO NO BANCO</span>
+                            <span>EVENTO DISPONÍVEL</span>
                         </div>
                         <div class="group-actions-row">
                             <button class="status-btn ${estaAtivo ? 'btn-is-on' : 'btn-is-off'}" onclick='alternarAtivacao(${evData})'>
-                                ${estaAtivo ? '● SELECIONADO' : 'SELECIONAR'}
+                                ${estaAtivo ? '● ATIVO' : 'ATIVAR'}
                             </button>
-                            <button class="btn-edit-big" onclick='irParaEditar(${evData})'>EDITAR</button>
+                            <button class="btn-edit-big" onclick='irParaEditar(${evData})'>CONFIG</button>
                             <button class="btn-del-big" onclick="excluirEvento('${ev.id}', '${ev.nome}')">×</button>
                         </div>
                     </div>
@@ -186,7 +193,8 @@
                 container.appendChild(card);
             });
         } catch (err) { 
-            container.innerHTML = `<p style="color: #ff5555; text-align:center;">Erro ao carregar eventos.</p>`; 
+            console.error(err);
+            container.innerHTML = `<p style="color: #ff5555; text-align:center;">Erro ao conectar com o servidor.</p>`; 
         }
     }
 
