@@ -113,7 +113,7 @@
     </div>
 
 <script>
-    const SENHA_MESTRA = ""; 
+    const SENHA_MESTRA = "1234"; // Defina sua senha aqui
     const WORKER_URL = "https://autographcam.maxprimefotovideo.workers.dev";
 
     window.onload = () => { if(sessionStorage.getItem('logado') === 'true') liberarSistema(); }
@@ -144,76 +144,107 @@
         navigator.clipboard.writeText(link).then(() => { alert("Link copiado!"); });
     }
 
+    // Função Unificada para Preparar Dados (Garante compatibilidade com Camera e Edição)
+    function prepararDadosEvento(ev) {
+        return {
+            id: ev.id,
+            id_fixo: ev.evento_id,
+            nome: ev.nome_visual,
+            data: ev.data_evento,
+            musicaUrl: ev.musica_url,
+            molduraUrl: ev.moldura_url,
+            musicaTrim: ev.musica_trim
+        };
+    }
+
+    function irParaCamera(evRaw) {
+        const dados = prepararDadosEvento(evRaw);
+        localStorage.setItem('config_atual', JSON.stringify(dados));
+        window.location.href = 'camera.html';
+    }
+
+    function irParaEditar(evRaw) {
+        const dados = prepararDadosEvento(evRaw);
+        localStorage.setItem('evento_para_editar', JSON.stringify(dados));
+        window.location.href = 'config_evento.html';
+    }
+
+    function alternarAtivacao(evRaw) {
+        const dados = prepararDadosEvento(evRaw);
+        localStorage.setItem('config_atual', JSON.stringify(dados));
+        renderEventos();
+    }
+
     async function renderEventos() {
-    const container = document.getElementById('lista-eventos');
-    const eventoAtivoConfig = JSON.parse(localStorage.getItem('config_atual'));
+        const container = document.getElementById('lista-eventos');
+        const eventoAtivoConfig = JSON.parse(localStorage.getItem('config_atual'));
 
-    try {
-        const res = await fetch(`${WORKER_URL}/listar-eventos?t=${Date.now()}`);
-        const eventos = await res.json();
-        
-        if(!eventos || eventos.length === 0) { 
-            container.innerHTML = '<p style="text-align:center; opacity:0.5; margin-top:20px;">Sem eventos cadastrados.</p>'; 
-            return; 
-        }
-
-        container.innerHTML = '';
-        eventos.forEach((ev) => {
-            // Ajuste para usar as colunas novas do banco
-            const nomeExibicao = ev.nome_visual || ev.evento_id || "Evento Sem Nome";
-            const idPasta = ev.evento_id; 
-
-            const estaAtivo = eventoAtivoConfig && (
-                eventoAtivoConfig.id === ev.id || 
-                eventoAtivoConfig.id_fixo === idPasta
-            );
-
-            const evData = JSON.stringify(ev).replace(/"/g, '&quot;');
-            const card = document.createElement('div');
-            card.className = `event-card ${estaAtivo ? 'active-border' : ''}`;
-            card.innerHTML = `
-                <div class="event-info-col">
-                    <div class="event-info">
-                        <h4>${nomeExibicao.replace(/_/g, ' ')}</h4>
-                        <span>ID: ${idPasta}</span>
-                    </div>
-                    <div class="group-actions-row">
-                        <button class="status-btn ${estaAtivo ? 'btn-is-on' : 'btn-is-off'}" onclick='alternarAtivacao(${evData})'>
-                            ${estaAtivo ? '● SELECIONADO' : 'SELECIONAR'}
-                        </button>
-                        <button class="btn-edit-big" onclick='irParaEditar(${evData})'>CONFIG</button>
-                        <button class="btn-del-big" onclick="excluirEvento('${ev.id}', '${idPasta}')">×</button>
-                    </div>
-                </div>
-                <button class="btn-camera-main" onclick="irParaCamera(${evData})">📸</button>
-            `;
-            container.appendChild(card);
-        });
-    } catch (err) { 
-        container.innerHTML = `<p style="color: #ff5555; text-align:center;">Erro ao carregar eventos do servidor.</p>`; 
-    }
-}
-
-async function excluirEvento(id, nomePasta) {
-    if(confirm(`ATENÇÃO: Apagar evento e todos os arquivos?`)) {
-        try { 
-            const res = await fetch(`${WORKER_URL}/deletar-evento-completo`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: id, evento: nomePasta })
-            });
+        try {
+            const res = await fetch(`${WORKER_URL}/listar-eventos?t=${Date.now()}`);
+            const eventos = await res.json();
             
-            if(res.ok) {
-                alert("Evento excluído com sucesso!");
-                renderEventos(); 
-            } else {
-                alert("Erro ao excluir do servidor.");
+            if(!eventos || eventos.length === 0) { 
+                container.innerHTML = '<p style="text-align:center; opacity:0.5; margin-top:20px;">Sem eventos cadastrados.</p>'; 
+                return; 
             }
-        } catch (e) { 
-            alert("Erro de conexão ao deletar."); 
+
+            container.innerHTML = '';
+            eventos.forEach((ev) => {
+                const nomeExibicao = ev.nome_visual || ev.evento_id || "Evento Sem Nome";
+                const idPasta = ev.evento_id; 
+
+                // Verificação de ativação baseada no ID único do banco
+                const estaAtivo = eventoAtivoConfig && (eventoAtivoConfig.id === ev.id);
+
+                // Passamos o objeto cru do banco para as funções de tratamento
+                const evDataRaw = JSON.stringify(ev).replace(/"/g, '&quot;');
+                
+                const card = document.createElement('div');
+                card.className = `event-card ${estaAtivo ? 'active-border' : ''}`;
+                card.innerHTML = `
+                    <div class="event-info-col">
+                        <div class="event-info">
+                            <h4>${nomeExibicao.replace(/_/g, ' ')}</h4>
+                            <span>ID: ${idPasta}</span>
+                        </div>
+                        <div class="group-actions-row">
+                            <button class="status-btn ${estaAtivo ? 'btn-is-on' : 'btn-is-off'}" onclick='alternarAtivacao(${evDataRaw})'>
+                                ${estaAtivo ? '● SELECIONADO' : 'SELECIONAR'}
+                            </button>
+                            <button class="btn-edit-big" onclick='irParaEditar(${evDataRaw})'>CONFIG</button>
+                            <button class="btn-del-big" onclick="excluirEvento('${ev.id}', '${idPasta}')">×</button>
+                        </div>
+                    </div>
+                    <button class="btn-camera-main" onclick="irParaCamera(${evDataRaw})">📸</button>
+                `;
+                container.appendChild(card);
+            });
+        } catch (err) { 
+            container.innerHTML = `<p style="color: #ff5555; text-align:center;">Erro ao carregar eventos do servidor.</p>`; 
         }
     }
-}
+
+    async function excluirEvento(id, nomePasta) {
+        if(confirm(`ATENÇÃO: Apagar evento e todos os arquivos?`)) {
+            try { 
+                const res = await fetch(`${WORKER_URL}/deletar-evento-completo`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: id, evento: nomePasta })
+                });
+                
+                if(res.ok) {
+                    alert("Evento excluído com sucesso!");
+                    renderEventos(); 
+                } else {
+                    alert("Erro ao excluir do servidor.");
+                }
+            } catch (e) { 
+                alert("Erro de conexão ao deletar."); 
+            }
+        }
+    }
+
     function bloquear() { sessionStorage.removeItem('logado'); location.reload(); }
 </script>
 </body>
