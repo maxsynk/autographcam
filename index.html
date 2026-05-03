@@ -114,7 +114,7 @@
     </div>
 
 <script>
-    const SENHA_MESTRA = ""; // Defina sua senha aqui
+    const SENHA_MESTRA = "1234"; // Defina sua senha aqui
     const WORKER_URL = "https://autographcam.maxprimefotovideo.workers.dev";
 
     window.onload = () => { if(sessionStorage.getItem('logado') === 'true') liberarSistema(); }
@@ -145,32 +145,26 @@
         navigator.clipboard.writeText(link).then(() => { alert("Link copiado!"); });
     }
 
-    // FUNÇÃO CORRIGIDA: Garante que os campos id_fixo e tempo existam para a câmera
     function prepararDadosEvento(ev) {
-        const nomeSeguro = ev.nome_visual || ev.evento_id || "Geral";
-        const idSeguro = ev.evento_id || ev.nome_visual || "Geral";
-
         return {
             id: ev.id,
-            id_fixo: idSeguro.replace(/\s+/g, '_'), // Limpa espaços para evitar erro de R2
-            nome: nomeSeguro,
+            id_fixo: ev.evento_id,
+            nome: ev.nome_visual,
             data: ev.data_evento,
             musicaUrl: ev.musica_url,
             molduraUrl: ev.moldura_url,
             musicaTrim: ev.musica_trim || "0",
-            tempo: ev.tempo_video || "10" // Garante que a câmera saiba quanto tempo gravar
+            tempo: ev.tempo_video || "10"
         };
     }
 
     function irParaCamera(evRaw) {
-        const dados = prepararDadosEvento(evRaw);
-        localStorage.setItem('config_atual', JSON.stringify(dados));
+        localStorage.setItem('config_atual', JSON.stringify(prepararDadosEvento(evRaw)));
         window.location.href = 'camera.html';
     }
 
     function irParaEditar(evRaw) {
-        const dados = prepararDadosEvento(evRaw);
-        localStorage.setItem('evento_para_editar', JSON.stringify(dados));
+        localStorage.setItem('evento_para_editar', JSON.stringify(prepararDadosEvento(evRaw)));
         window.location.href = 'config_evento.html';
     }
 
@@ -201,8 +195,6 @@
 
             container.innerHTML = '';
             eventos.forEach((ev) => {
-                const nomeExibicao = ev.nome_visual || ev.evento_id || "Evento Sem Nome";
-                const idPasta = ev.evento_id || "sem_id"; 
                 const estaAtivo = eventoAtivoConfig && (eventoAtivoConfig.id === ev.id);
                 const evDataRaw = JSON.stringify(ev).replace(/"/g, '&quot;');
                 
@@ -211,15 +203,15 @@
                 card.innerHTML = `
                     <div class="event-info-col">
                         <div class="event-info">
-                            <h4>${nomeExibicao.replace(/_/g, ' ')}</h4>
-                            <span>ID PASTA: ${idPasta}</span>
+                            <h4>${(ev.nome_visual || ev.evento_id).replace(/_/g, ' ')}</h4>
+                            <span>ID PASTA: ${ev.evento_id}</span>
                         </div>
                         <div class="group-actions-row">
                             <button class="status-btn ${estaAtivo ? 'btn-is-on' : 'btn-is-off'}" onclick='alternarAtivacao(${evDataRaw})'>
                                 ${estaAtivo ? '● ATIVADO' : 'ATIVAR'}
                             </button>
                             <button class="btn-edit-big" onclick='irParaEditar(${evDataRaw})'>EDITAR</button>
-                            <button class="btn-del-big" onclick="excluirEvento('${ev.id}', '${idPasta}')">×</button>
+                            <button class="btn-del-big" onclick="excluirEvento('${ev.evento_id}')">×</button>
                         </div>
                     </div>
                     <button class="btn-camera-main" ${estaAtivo ? '' : 'disabled'} onclick='irParaCamera(${evDataRaw})'>
@@ -233,27 +225,33 @@
         }
     }
 
-    async function excluirEvento(eventoIdFixo) {
-    if (!confirm("Tem certeza que deseja apagar este evento e todos os registros dele?")) return;
+    async function excluirEvento(idPasta) {
+        if (!confirm(`TEM CERTEZA? Isso vai apagar o evento "${idPasta}" e todos os vídeos dele!`)) return;
 
-    try {
-        const res = await fetch(`${WORKER_URL}/deletar-evento`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ evento_id: String(eventoIdFixo) }) // Enviando o ID para o Worker
-        });
+        try {
+            const res = await fetch(`${WORKER_URL}/deletar-evento`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ evento_id: String(idPasta) })
+            });
 
-        if (res.ok) {
-            alert("Evento removido!");
-            listarEventos(); // Recarrega a lista para sumir da tela
-        } else {
-            const erro = await res.json();
-            alert("Erro ao deletar: " + (erro.error || "Erro desconhecido"));
+            const data = await res.json();
+
+            if (data.success) {
+                alert("Evento removido com sucesso!");
+                // Se o evento excluído era o que estava ativo, limpa o localStorage
+                const atual = JSON.parse(localStorage.getItem('config_atual'));
+                if (atual && atual.id_fixo === idPasta) {
+                    localStorage.removeItem('config_atual');
+                }
+                renderEventos(); // Atualiza a lista na tela
+            } else {
+                alert("Erro ao deletar: " + data.error);
+            }
+        } catch (e) {
+            alert("Erro de conexão ao tentar deletar.");
         }
-    } catch (e) {
-        alert("Erro de conexão ao tentar deletar.");
     }
-}
 
     function bloquear() { sessionStorage.removeItem('logado'); location.reload(); }
 </script>
