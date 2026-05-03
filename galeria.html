@@ -33,9 +33,9 @@
         .btn-busca { background: var(--accent); color: var(--bg-deep); border: none; padding: 0 20px; border-radius: 8px; font-weight: bold; cursor: pointer; }
 
         .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; padding: 15px; padding-bottom: 50px; }
-        .video-card { background: #000; border: 1px solid rgba(105, 130, 158, 0.3); border-radius: 12px; overflow: hidden; aspect-ratio: 9/16; position: relative; }
+        .video-card { background: #000; border: 1px solid rgba(105, 130, 158, 0.3); border-radius: 12px; overflow: hidden; aspect-ratio: 9/16; position: relative; cursor: pointer; }
         .video-number { position: absolute; top: 10px; right: 10px; color: white; font-weight: bold; background: var(--accent); padding: 2px 8px; border-radius: 5px; z-index: 5; font-size: 12px; }
-        .video-card video { width: 100%; height: 100%; object-fit: cover; }
+        .video-card video { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
 
         #modal-zoom { position: fixed; inset: 0; background: rgba(14, 26, 37, 0.98); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(10px); }
         #media-full { width: 85%; max-height: 70vh; border: 2px solid var(--accent); border-radius: 15px; background: #000; }
@@ -43,8 +43,6 @@
         .btn-action { padding: 12px 20px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 12px; }
         .btn-close { background: #333; color: white; }
         .btn-download { background: var(--accent); color: var(--bg-deep); }
-        
-        /* Rodapé removido conforme solicitado */
     </style>
 </head>
 <body>
@@ -75,11 +73,11 @@
     </div>
 
 <script>
-    const WORKER_URL = "https://photomovie.maxprimefotovideo.workers.dev";
+    // URL ATUALIZADA
+    const WORKER_URL = "https://autographcam.maxprimefotovideo.workers.dev";
     let listaArquivosAtuais = [];
     let idPastaFixo = ""; 
 
-    // BLOQUEIO DO BOTÃO VOLTAR
     function bloquearVoltar() {
         window.history.pushState(null, null, window.location.href);
         window.onpopstate = function () {
@@ -87,17 +85,15 @@
         };
     }
 
-    // SAÍDA PARA ADMIN (7 Cliques no Título)
     let cliquesSaida = 0;
     document.getElementById('logo-exit').onclick = () => {
         if(++cliquesSaida >= 7) window.location.href = 'index.html';
     };
 
-    // FUNÇÃO PARA COPIAR O LINK DA GALERIA
     function copiarLinkGaleria() {
         const link = `${window.location.origin}${window.location.pathname}?evento=${idPastaFixo}`;
         navigator.clipboard.writeText(link).then(() => {
-            alert("Link da Galeria Copiado!\n" + link);
+            alert("Link da Galeria Copiado!");
         });
     }
 
@@ -120,19 +116,24 @@
         try {
             const res = await fetch(`${WORKER_URL}/listar-galeria?evento=${encodeURIComponent(idPastaFixo)}`);
             const dados = await res.json();
-            // Sincroniza com os arquivos de autógrafo e finais
             const novos = dados.filter(f => f.path.toLowerCase().includes('autograph_') || f.path.toLowerCase().includes('final_'));
             
             if (JSON.stringify(novos) !== JSON.stringify(listaArquivosAtuais)) {
                 listaArquivosAtuais = novos;
                 renderizar();
             }
-        } catch (e) {}
+        } catch (e) {
+            console.error("Erro na sincronização");
+        }
     }
 
     function renderizar() {
         const container = document.getElementById('gallery-container');
         container.innerHTML = "";
+        if (listaArquivosAtuais.length === 0) {
+            container.innerHTML = "<p style='grid-column: 1/-1; opacity:0.5; margin-top:50px;'>Aguardando vídeos...</p>";
+            return;
+        }
         listaArquivosAtuais.forEach((file, index) => {
             const url = `${WORKER_URL}/stream?id=${encodeURIComponent(file.path)}`;
             const card = document.createElement('div');
@@ -144,23 +145,27 @@
     }
 
     function executarBusca() {
-        const index = parseInt(document.getElementById('input-busca').value) - 1;
+        const input = document.getElementById('input-busca').value;
+        const index = parseInt(input) - 1;
         if (listaArquivosAtuais[index]) {
             const file = listaArquivosAtuais[index];
             abrirZoom(`${WORKER_URL}/stream?id=${encodeURIComponent(file.path)}`, file.path);
+            document.getElementById('input-busca').value = "";
         } else {
             alert("Vídeo não encontrado.");
         }
     }
 
-    function abrirZoom(url, path) {
+    async function abrirZoom(url, path) {
         const modal = document.getElementById('modal-zoom');
         const video = document.getElementById('media-full');
         modal.style.display = 'flex';
         video.src = url;
         video.play();
-        document.getElementById('btn-download-force').onclick = () => {
-            fetch(url).then(r => r.blob()).then(b => saveAs(b, path.split('/').pop()));
+        document.getElementById('btn-download-force').onclick = async () => {
+            const res = await fetch(url);
+            const blob = await res.blob();
+            saveAs(blob, path.split('/').pop());
         };
     }
 
