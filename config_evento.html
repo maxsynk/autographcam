@@ -45,8 +45,9 @@
         label { display: block; font-size: 11px; margin: 15px 0 8px 0; color: var(--accent); font-weight: bold; text-transform: uppercase; }
 
         input, select {
-            width: 100%; padding: 16px; background: #000; border: 1px solid #333;
+            width: 100%; padding: 166px; background: #000; border: 1px solid #333;
             color: white; border-radius: 14px; box-sizing: border-box; font-size: 16px; outline: none;
+            padding: 16px; /* Correção do padding acidental acima */
         }
         input:focus { border-color: var(--accent); }
 
@@ -94,7 +95,7 @@
         <div class="section">
             <h3>1. O Evento</h3>
             <label>NOME DO EVENTO (Visual)</label>
-            <input type="text" id="conf-nome" placeholder="Ex: Festa de Lançamento X" oninput="gerarIdFixo(this.value)">
+            <input type="text" id="conf-nome" placeholder="Ex: Casamento João e Maria" oninput="gerarIdFixo(this.value)">
             <label>DATA</label>
             <input type="date" id="conf-data">
         </div>
@@ -164,6 +165,7 @@
     }
 
     function gerarIdFixo(valor) {
+        // Só gera ID fixo se não estiver editando um evento já existente
         if(!document.getElementById('conf-id').value) {
             document.getElementById('conf-id-fixo').value = sanitizarPasta(valor);
         }
@@ -173,28 +175,27 @@
         const editData = localStorage.getItem('evento_para_editar');
         if (editData) {
             const ev = JSON.parse(editData);
+            // Mapeamento compatível com o banco de dados D1
             document.getElementById('conf-id').value = ev.id || "";
-            document.getElementById('conf-id-fixo').value = ev.evento_id || ev.id_fixo || sanitizarPasta(ev.nome); 
+            document.getElementById('conf-id-fixo').value = ev.evento_id || sanitizarPasta(ev.nome_visual || ev.nome); 
             document.getElementById('conf-nome').value = ev.nome_visual || ev.nome || "";
             document.getElementById('conf-data').value = ev.data_evento || ev.data || "";
             
-            if(ev.musica_url || ev.musicaUrl) {
-                const mUrl = ev.musica_url || ev.musicaUrl;
-                document.getElementById('conf-musica-url').value = mUrl;
-                document.getElementById('conf-musica-name').value = ev.musicaName || "musica_evento.mp3";
-                document.getElementById('music-filename-display').innerText = ev.musicaName || "Arquivo carregado";
+            if(ev.musica_url) {
+                document.getElementById('conf-musica-url').value = ev.musica_url;
+                document.getElementById('conf-musica-name').value = ev.musica_name || "musica_evento.mp3";
+                document.getElementById('music-filename-display').innerText = ev.musica_name || "Arquivo carregado";
                 document.getElementById('music-status-text').innerText = "🎵 MÚSICA CONFIGURADA";
-                player.src = `${WORKER_URL}/stream?id=${mUrl}`;
+                player.src = `${WORKER_URL}/stream?id=${ev.musica_url}`;
                 player.style.display = "block";
-                const totalSeconds = parseInt(ev.musica_trim || ev.musicaTrim) || 0;
+                const totalSeconds = parseInt(ev.musica_trim) || 0;
                 document.getElementById('trim-min').value = Math.floor(totalSeconds / 60);
                 document.getElementById('trim-sec').value = totalSeconds % 60;
             }
 
-            if(ev.moldura_url || ev.molduraUrl) {
-                const fUrl = ev.moldura_url || ev.molduraUrl;
-                document.getElementById('conf-moldura-url').value = fUrl;
-                document.getElementById('frame-preview').src = `${WORKER_URL}/stream?id=${fUrl}`; 
+            if(ev.moldura_url) {
+                document.getElementById('conf-moldura-url').value = ev.moldura_url;
+                document.getElementById('frame-preview').src = `${WORKER_URL}/stream?id=${ev.moldura_url}`; 
                 document.getElementById('frame-preview').style.display = "block";
                 document.getElementById('upload-label').innerText = "📸 MOLDURA OK";
             }
@@ -221,11 +222,23 @@
     function toggleModal(id, show) { document.getElementById(id).style.display = show ? 'flex' : 'none'; if(!show) player.pause(); }
     function fecharModalMusica() { toggleModal('music-modal', false); }
 
+    // --- FUNÇÃO CORRIGIDA PARA GARANTIR PASTAS NO R2 ---
     async function subirArquivo(input, tipo) {
-        const nomeEvento = document.getElementById('conf-nome').value.trim();
-        if(!nomeEvento) { alert("Dê um nome ao evento primeiro!"); input.value=''; return; }
+        const nomeInput = document.getElementById('conf-nome');
+        let idPasta = document.getElementById('conf-id-fixo').value.trim();
         
-        const idPasta = document.getElementById('conf-id-fixo').value || sanitizarPasta(nomeEvento);
+        // CORREÇÃO: Se for um evento novo, força a geração do ID antes do upload
+        if (!idPasta) {
+            if (!nomeInput.value.trim()) {
+                alert("⚠️ Digite o NOME DO EVENTO antes de subir moldura ou música!");
+                input.value = ""; // limpa a seleção do arquivo
+                return;
+            }
+            // Gera o ID na hora baseado no nome digitado
+            idPasta = sanitizarPasta(nomeInput.value.trim());
+            document.getElementById('conf-id-fixo').value = idPasta; // Salva no hidden
+        }
+
         if(!input.files[0]) return;
         
         const file = input.files[0];
@@ -234,21 +247,26 @@
         label.innerText = "⏳ ENVIANDO...";
 
         const formData = new FormData();
-        formData.append("file", file);
-        // O uuid é o nome do arquivo. O Worker vai concatenar com a pasta do evento.
+        formData.append("file", file); // Worker aceita 'file' ou 'video'
+        
+        // Define nomes fixos para facilitar a busca pelo motor Python
         const fileName = tipo === 'MOLDURA' ? `moldura_principal.png` : `musica_evento.mp3`;
         formData.append("uuid", fileName); 
-        formData.append("evento", idPasta);
+        formData.append("evento", idPasta); // <--- Chave para o Worker criar a pasta
 
         try {
             const res = await fetch(`${WORKER_URL}/upload`, { method: 'POST', body: formData });
-            if(!res.ok) throw new Error("Erro no servidor");
+            if(!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.error || "Erro no servidor");
+            }
 
-            // O caminho final no R2 e no Banco será: idPasta/fileName
+            // O caminho relativo que será salvo no banco D1
             const pathRelativo = `${idPasta}/${fileName}`;
             
             if(tipo === 'MOLDURA') {
                 document.getElementById('conf-moldura-url').value = pathRelativo;
+                // Atualiza preview com cache bust
                 document.getElementById('frame-preview').src = `${WORKER_URL}/stream?id=${pathRelativo}&t=${Date.now()}`;
                 document.getElementById('frame-preview').style.display = "block";
                 label.innerText = "📸 MOLDURA OK";
@@ -256,12 +274,13 @@
                 document.getElementById('conf-musica-url').value = pathRelativo;
                 document.getElementById('conf-musica-name').value = file.name;
                 document.getElementById('music-filename-display').innerText = file.name;
-                label.innerText = "✅ " + file.name;
+                label.innerText = "✅ MÚSICA OK";
                 player.src = URL.createObjectURL(file);
                 player.style.display = "block";
             }
         } catch (e) { 
-            alert("Erro no upload. Verifique sua conexão."); 
+            console.error(e);
+            alert("Erro no upload: " + e.message); 
             label.innerText = originalText; 
         }
     }
@@ -270,21 +289,19 @@
         const nomeVisual = document.getElementById('conf-nome').value.trim();
         if(!nomeVisual) return alert("Digite o nome do evento.");
 
-        const idFixo = document.getElementById('conf-id-fixo').value || sanitizarPasta(nomeVisual);
+        // Força a sanitização do ID Fixo final antes de salvar no banco
+        const idFixo = document.getElementById('conf-id-fixo').value.trim() || sanitizarPasta(nomeVisual);
 
         const config = {
             id: document.getElementById('conf-id').value || String(Date.now()),
-            id_fixo: idFixo, 
-            nome: nomeVisual, 
+            id_fixo: idFixo, // Nome da pasta no R2 e identificador no D1
+            nome: nomeVisual, // Nome visível na central
             data: document.getElementById('conf-data').value,
+            // Configurações fixas para o preset 'Autograph Loop'
             tempo: "10", 
-            preset: "autograph_loop",
-            v1: "1.0", v2: "2.0", v3: "1.5", reverso: true,
-            molduraUrl: document.getElementById('conf-moldura-url').value,
-            musicaUrl: document.getElementById('conf-musica-url').value,
-            musicaName: document.getElementById('conf-musica-name').value,
+            molduraUrl: document.getElementById('conf-moldura-url').value, // Caminho: pasta/moldura.png
+            musicaUrl: document.getElementById('conf-musica-url').value, // Caminho: pasta/musica.mp3
             musicaTrim: String((parseInt(document.getElementById('trim-min').value)||0)*60 + (parseInt(document.getElementById('trim-sec').value)||0)),
-            musicaLoopVol: true
         };
 
         try {
@@ -297,12 +314,13 @@
             if(res.ok) { 
                 localStorage.setItem('config_atual', JSON.stringify(config));
                 localStorage.removeItem('evento_para_editar');
-                alert("Evento cadastrado com sucesso!"); 
+                alert("Evento salvo com sucesso e organizado em pastas!"); 
                 window.location.href = 'index.html'; 
             } else {
-                alert("Erro ao salvar no banco de dados.");
+                alert("Erro ao salvar no banco de dados. Verifique o Worker.");
             }
         } catch (e) { 
+            console.error(e);
             alert("Erro de conexão com o servidor."); 
         }
     }
