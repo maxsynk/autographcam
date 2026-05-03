@@ -100,7 +100,6 @@
     </div>
 
 <script>
-    // URL Atualizada conforme o padrão do projeto
     const WORKER_URL = "https://autographcam.maxprimefotovideo.workers.dev";
     const video = document.getElementById('preview');
     const canvas = document.getElementById('canvas');
@@ -110,6 +109,8 @@
     
     let currentStream;
     let useFrontCamera = false;
+    let gravando = false;
+    let animationId;
     const molduraImg = new Image();
     molduraImg.crossOrigin = "anonymous"; 
 
@@ -122,6 +123,7 @@
         try {
             currentStream = await navigator.mediaDevices.getUserMedia(constraints);
             video.srcObject = currentStream;
+            video.play();
         } catch (e) { alert("Erro ao acessar câmera."); }
     }
 
@@ -133,7 +135,6 @@
     window.onload = () => {
         const config = JSON.parse(localStorage.getItem('config_atual'));
         if (config) {
-            // Atualiza o nome conforme a correção oficial do sistema
             document.getElementById('txt-evento').innerText = (config.nome || "AUTOGRAPH CAM").replace(/_/g, ' ');
             let molduraPath = config.molduraUrl || config.moldura;
             if (molduraPath) {
@@ -147,6 +148,7 @@
     };
 
     btn.onclick = () => {
+        if (gravando) return;
         let c = 3;
         const status = document.getElementById('status');
         status.style.display = 'flex';
@@ -163,50 +165,51 @@
         }, 1000);
     };
 
+    function desenharLoop() {
+        if (!gravando) return;
+
+        ctx.save();
+        if (useFrontCamera) {
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+        }
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
+        
+        if (molduraImg.complete) {
+            ctx.drawImage(molduraImg, 0, 0, canvas.width, canvas.height);
+        }
+
+        animationId = requestAnimationFrame(desenharLoop);
+    }
+
     function iniciarGravacao() {
+        gravando = true;
         const chunks = [];
         const config = JSON.parse(localStorage.getItem('config_atual'));
-        const tempo = (config && config.tempo ? parseInt(config.tempo) : 10) * 1000;
+        const tempoSegundos = (config && config.tempo ? parseInt(config.tempo) : 10);
         
-        // Normalização do nome para evitar erros de upload
         const nomeEventoRaw = config ? (config.id_fixo || config.nome) : "Geral";
         const nomeEvento = nomeEventoRaw.replace(/\s+/g, '_');
 
-        let recorder;
-        const loop = () => {
-            if (video.paused || video.ended) return;
-            ctx.save();
-            
-            if (useFrontCamera) {
-                ctx.translate(canvas.width, 0);
-                ctx.scale(-1, 1);
-            }
-            
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            ctx.restore();
-            
-            if (molduraImg.complete) {
-                ctx.drawImage(molduraImg, 0, 0, canvas.width, canvas.height);
-            }
-            
-            if (recorder && recorder.state === "recording") {
-                requestAnimationFrame(loop);
-            }
-        };
-
         const stream = canvas.captureStream(30);
-        recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8', videoBitsPerSecond: 5000000 });
+        const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8', videoBitsPerSecond: 5000000 });
         
         recorder.ondataavailable = e => { if(e.data.size > 0) chunks.push(e.data); };
         
         recorder.onstop = async () => {
+            gravando = false;
+            cancelAnimationFrame(animationId);
             document.getElementById('loading').style.display = 'flex';
             enviarVideo(chunks, nomeEvento);
         };
 
+        desenharLoop();
         recorder.start();
-        loop(); 
-        setTimeout(() => { if(recorder.state === "recording") recorder.stop(); }, tempo);
+
+        setTimeout(() => {
+            if(recorder.state === "recording") recorder.stop();
+        }, tempoSegundos * 1000);
     }
 
     async function enviarVideo(chunks, nomeEvento) {
@@ -225,11 +228,10 @@
             if(res.ok) {
                 window.location.href = `galeria.html?evento=${nomeEvento}`;
             } else {
-                const erroTexto = await res.text();
-                alert("Erro no upload: " + erroTexto);
+                alert("Erro no upload do vídeo.");
             }
         } catch (err) { 
-            alert("Erro de conexão com o servidor. Tente novamente."); 
+            alert("Erro de conexão com o servidor."); 
         }
         document.getElementById('loading').style.display = 'none';
     }
