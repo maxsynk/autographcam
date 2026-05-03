@@ -171,24 +171,25 @@
     }
 
     window.onload = () => {
-        const editData = localStorage.getItem('evento_para_editar');
-        if (editData) {
+    const editData = localStorage.getItem('evento_para_editar');
+    if (editData) {
+        try {
             const ev = JSON.parse(editData);
-            document.getElementById('conf-id').value = ev.id || "";
-            document.getElementById('conf-id-fixo').value = ev.evento_id || sanitizarPasta(ev.nome_visual || ev.nome); 
-            document.getElementById('conf-nome').value = ev.nome_visual || ev.nome || "";
+            // Mapeamento Inteligente: aceita tanto o padrão antigo quanto o novo
+            const idParaUsar = ev.id || ev.ID || "";
+            const nomeParaUsar = ev.nome_visual || ev.nome || "";
+            const idFixoParaUsar = ev.evento_id || ev.id_fixo || sanitizarPasta(nomeParaUsar);
+
+            document.getElementById('conf-id').value = idParaUsar;
+            document.getElementById('conf-id-fixo').value = idFixoParaUsar; 
+            document.getElementById('conf-nome').value = nomeParaUsar;
             document.getElementById('conf-data').value = ev.data_evento || ev.data || "";
             
             if(ev.musica_url) {
                 document.getElementById('conf-musica-url').value = ev.musica_url;
-                document.getElementById('conf-musica-name').value = ev.musica_name || "musica_evento.mp3";
-                document.getElementById('music-filename-display').innerText = ev.musica_name || "Arquivo carregado";
                 document.getElementById('music-status-text').innerText = "🎵 MÚSICA CONFIGURADA";
                 player.src = `${WORKER_URL}/stream?id=${ev.musica_url}`;
                 player.style.display = "block";
-                const totalSeconds = parseInt(ev.musica_trim) || 0;
-                document.getElementById('trim-min').value = Math.floor(totalSeconds / 60);
-                document.getElementById('trim-sec').value = totalSeconds % 60;
             }
 
             if(ev.moldura_url) {
@@ -198,8 +199,12 @@
                 document.getElementById('upload-label').innerText = "📸 MOLDURA OK";
             }
             document.getElementById('titulo-pagina').innerText = "EDITAR EVENTO";
+        } catch (e) {
+            console.error("Erro ao processar dados do evento:", e);
+            alert("Erro ao carregar dados da edição. Tente selecionar o evento novamente.");
         }
-    };
+    }
+};
 
     function sincronizarPlayer() {
         if(player && player.src) {
