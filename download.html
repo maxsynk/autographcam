@@ -92,10 +92,9 @@
     <a href="index.html" class="btn-back">← Voltar ao Início</a>
 
 <script>
-    // 1. Definições globais
-    const WORKER_URL = 'https://photomovie.maxprimefotovideo.workers.dev';
+    // URL ATUALIZADA
+    const WORKER_URL = 'https://autographcam.maxprimefotovideo.workers.dev';
     
-    // 2. Função principal de carregamento
     async function carregarVideo() {
         const params = new URLSearchParams(window.location.search);
         const videoId = params.get('id');
@@ -105,9 +104,8 @@
         const downloadBtn = document.getElementById('btn-download');
         const numLabel = document.getElementById('video-number');
 
-        // Se o ID existir na URL
         if (videoId && videoId !== "null") {
-            const videoSrc = `${WORKER_URL}/stream?id=${videoId}`;
+            const videoSrc = `${WORKER_URL}/stream?id=${encodeURIComponent(videoId)}`;
             
             numLabel.innerText = numero ? `VÍDEO #${numero}` : `MEU VÍDEO`;
             player.src = videoSrc;
@@ -138,6 +136,7 @@
 
                 } catch (e) {
                     console.error("Falha no download:", e);
+                    // Abre em nova aba como fallback
                     window.open(videoSrc, '_blank');
                 } finally {
                     downloadBtn.innerText = originalText;
