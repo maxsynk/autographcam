@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Câmera Pro - AUTOGRAPH CAM</title>
+    <title>Câmera - AUTOGRAPH CAM</title>
     <style>
         :root { 
             --bg-deep: #0E1A25;
@@ -13,9 +13,7 @@
         }
         
         body { margin: 0; background: var(--bg-deep); overflow: hidden; font-family: 'Segoe UI', sans-serif; }
-        
         #cam-container { width: 100vw; height: 100vh; position: relative; display: flex; flex-direction: column; }
-        
         video { width: 100%; height: 100%; object-fit: cover; }
         
         #moldura-view { 
@@ -24,7 +22,6 @@
             display: none; 
         }
 
-        /* Overlay de Evento */
         .event-overlay {
             position: absolute; top: 30px; width: 100%; text-align: center;
             z-index: 20; color: var(--text-main); text-transform: uppercase;
@@ -35,7 +32,6 @@
             color: var(--accent); text-transform: lowercase; margin-top: 5px;
         }
 
-        /* Controles */
         .controls-wrapper {
             position: absolute; bottom: 60px; width: 100%;
             display: flex; align-items: center; justify-content: space-around;
@@ -49,8 +45,6 @@
             cursor: pointer; font-size: 22px; backdrop-filter: blur(10px);
         }
 
-        /* Botão disparador com animação de pulso */
-        .shutter-container { position: relative; }
         .shutter-trigger { 
             width: 85px; height: 85px; border-radius: 50%; 
             background: transparent; border: 5px solid var(--accent); 
@@ -69,20 +63,6 @@
             100% { transform: scale(1.4); opacity: 0; }
         }
 
-        /* MECANISMO DO OBTURADOR (IRIS) */
-        #iris-overlay {
-            position: fixed; inset: 0; z-index: 500;
-            pointer-events: none; display: flex; align-items: center; justify-content: center;
-        }
-
-        .iris-svg { width: 150vmax; height: 150vmax; transform: rotate(0deg); transition: transform 0.8s ease; }
-        .iris-blade { fill: #000; transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1); transform-origin: center; }
-
-        /* Estado Fechado: As lâminas se encontram no centro */
-        .closed .iris-blade { transform: scale(1.2); }
-        .closed .iris-svg { transform: rotate(45deg); }
-
-        /* UI de Status e Loading */
         #status { position: fixed; inset: 0; display: none; background: rgba(14, 26, 37, 0.4); color: var(--text-main); font-size: 140px; align-items: center; justify-content: center; z-index: 200; font-weight: 900; text-shadow: 0 0 30px var(--accent); }
         
         #loading { 
@@ -95,21 +75,6 @@
 </head>
 <body>
 
-    <!-- Obturador Mecânico SVG -->
-    <div id="iris-overlay" class="">
-        <svg class="iris-svg" viewBox="0 0 100 100">
-            <!-- Gerando 8 lâminas dinâmicas -->
-            <path class="iris-blade" d="M50,50 L100,0 L100,100 Z" style="transform: rotate(0deg) translate(100%, 0);"></path>
-            <path class="iris-blade" d="M50,50 L100,0 L100,100 Z" style="transform: rotate(45deg) translate(100%, 0);"></path>
-            <path class="iris-blade" d="M50,50 L100,0 L100,100 Z" style="transform: rotate(90deg) translate(100%, 0);"></path>
-            <path class="iris-blade" d="M50,50 L100,0 L100,100 Z" style="transform: rotate(135deg) translate(100%, 0);"></path>
-            <path class="iris-blade" d="M50,50 L100,0 L100,100 Z" style="transform: rotate(180deg) translate(100%, 0);"></path>
-            <path class="iris-blade" d="M50,50 L100,0 L100,100 Z" style="transform: rotate(225deg) translate(100%, 0);"></path>
-            <path class="iris-blade" d="M50,50 L100,0 L100,100 Z" style="transform: rotate(270deg) translate(100%, 0);"></path>
-            <path class="iris-blade" d="M50,50 L100,0 L100,100 Z" style="transform: rotate(315deg) translate(100%, 0);"></path>
-        </svg>
-    </div>
-
     <div id="cam-container">
         <div class="event-overlay">
             <span id="txt-evento">AUTOGRAPH CAM</span>
@@ -121,11 +86,7 @@
 
         <div class="controls-wrapper">
             <div class="side-btn" onclick="window.location.href='index.html'">✕</div>
-            
-            <div class="shutter-container">
-                <div class="shutter-trigger" id="btn-shoot"></div>
-            </div>
-
+            <div class="shutter-trigger" id="btn-shoot"></div>
             <div class="side-btn" onclick="toggleCamera()">🔄</div>
         </div>
     </div>
@@ -145,23 +106,11 @@
     const ctx = canvas.getContext('2d');
     const btn = document.getElementById('btn-shoot');
     const view = document.getElementById('moldura-view');
-    const iris = document.getElementById('iris-overlay');
     
     let currentStream;
     let useFrontCamera = false;
     const molduraImg = new Image();
     molduraImg.crossOrigin = "anonymous"; 
-
-    // Função para animar o obturador
-    function triggerIris(callback) {
-        iris.classList.add('closed');
-        setTimeout(() => {
-            if(callback) callback();
-            setTimeout(() => {
-                iris.classList.remove('closed');
-            }, 300);
-        }, 600);
-    }
 
     async function startCamera() {
         if (currentStream) currentStream.getTracks().forEach(track => track.stop());
@@ -177,10 +126,10 @@
 
     function toggleCamera() {
         useFrontCamera = !useFrontCamera;
-        triggerIris(() => startCamera());
+        startCamera();
     }
 
-    window.onload = async () => {
+    window.onload = () => {
         const config = JSON.parse(localStorage.getItem('config_atual'));
         if (config) {
             document.getElementById('txt-evento').innerText = config.nome.replace(/_/g, ' ') || "AUTOGRAPH CAM";
@@ -207,7 +156,7 @@
             else { 
                 clearInterval(t); 
                 status.style.display = 'none'; 
-                triggerIris(() => iniciarGravacao()); 
+                iniciarGravacao(); 
             }
         }, 1000);
     };
@@ -215,16 +164,20 @@
     function iniciarGravacao() {
         const chunks = [];
         const config = JSON.parse(localStorage.getItem('config_atual'));
-        const tempo = (config ? parseInt(config.tempo) : 10) * 1000;
-        const nomeEvento = config ? (config.id_fixo || config.nome) : "Geral";
+        const tempo = (config && config.tempo ? parseInt(config.tempo) : 10) * 1000;
+        // Pega o ID fixo ou o nome, limpando espaços
+        const nomeEvento = config ? (config.id_fixo || config.nome).replace(/\s+/g, '_') : "Geral";
 
         let recorder;
-
         const loop = () => {
             if (video.paused || video.ended) return;
             ctx.save();
-            ctx.scale(-1, 1);
-            ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+            if (useFrontCamera) {
+                ctx.scale(-1, 1);
+                ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+            } else {
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            }
             ctx.restore();
             if (molduraImg.complete) ctx.drawImage(molduraImg, 0, 0, canvas.width, canvas.height);
             if (recorder && recorder.state === "recording") requestAnimationFrame(loop);
@@ -236,10 +189,8 @@
         recorder.ondataavailable = e => { if(e.data.size > 0) chunks.push(e.data); };
         
         recorder.onstop = async () => {
-            triggerIris(() => {
-                document.getElementById('loading').style.display = 'flex';
-                enviarVideo(chunks, nomeEvento);
-            });
+            document.getElementById('loading').style.display = 'flex';
+            enviarVideo(chunks, nomeEvento);
         };
 
         recorder.start();
@@ -256,9 +207,14 @@
 
         try {
             const res = await fetch(`${WORKER_URL}/upload`, { method: "POST", body: fd });
-            if(res.ok) window.location.href = "galeria.html";
-            else alert("Erro no upload.");
-        } catch (err) { alert("Erro de conexão."); }
+            if(res.ok) {
+                window.location.href = `galeria.html?evento=${encodeURIComponent(nomeEvento)}`;
+            } else {
+                alert("Erro no servidor de upload.");
+            }
+        } catch (err) { 
+            alert("Erro de rede. Verifique sua conexão."); 
+        }
         document.getElementById('loading').style.display = 'none';
     }
 </script>
