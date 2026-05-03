@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Câmera - AUTOGRAPH CAM</title>
     <style>
-        :root { --bg-deep: #0E1A25; --bg-surface: #182232; --accent: #69829E; --text-main: #EFEEE9; }
+        :root { --bg-deep: #0E1A25; --accent: #69829E; --text-main: #EFEEE9; }
         body { margin: 0; background: var(--bg-deep); overflow: hidden; font-family: 'Segoe UI', sans-serif; color: var(--text-main); }
         
         #cam-container { width: 100vw; height: 100vh; position: relative; display: flex; flex-direction: column; }
@@ -18,16 +18,14 @@
         }
 
         .event-header {
-            position: absolute; top: 30px; width: 100%; text-align: center;
-            z-index: 20; text-transform: uppercase;
+            position: absolute; top: 30px; width: 100%; text-align: center; z-index: 20;
         }
         #txt-evento { font-weight: 900; letter-spacing: 3px; text-shadow: 2px 2px 10px rgba(0,0,0,0.8); font-size: 18px; }
         
-        /* O contador de gravação solicitado */
-        #recording-timer { 
-            font-size: 14px; color: #ff4444; font-weight: bold; 
-            margin-top: 5px; letter-spacing: 1px; display: none;
-            text-shadow: 1px 1px 5px rgba(0,0,0,1);
+        /* Contador solicitado */
+        #timer-gravacao { 
+            font-size: 16px; color: #ff4444; font-weight: bold; margin-top: 8px; 
+            display: none; text-shadow: 1px 1px 5px #000;
         }
 
         .controls-wrapper {
@@ -48,7 +46,7 @@
             cursor: pointer; position: relative; z-index: 105;
         }
 
-        #status { position: fixed; inset: 0; display: none; background: rgba(0,0,0,0.5); font-size: 140px; align-items: center; justify-content: center; z-index: 200; font-weight: 900; text-shadow: 0 0 20px var(--accent); }
+        #status-countdown { position: fixed; inset: 0; display: none; background: rgba(0,0,0,0.5); font-size: 140px; align-items: center; justify-content: center; z-index: 200; font-weight: 900; }
         
         #loading { 
             position: fixed; inset: 0; display: none; background: var(--bg-deep);
@@ -63,7 +61,7 @@
     <div id="cam-container">
         <div class="event-header">
             <div id="txt-evento">AUTOGRAPH CAM</div>
-            <div id="recording-timer">GRAVANDO: 10s</div>
+            <div id="timer-gravacao">GRAVANDO: 10s</div>
         </div>
         
         <video id="preview" autoplay playsinline muted></video>
@@ -77,8 +75,8 @@
     </div>
 
     <canvas id="canvas" width="720" height="1280" style="display:none;"></canvas>
-    <div id="status"></div>
-    <div id="loading"><div class="spinner"></div><b>PROCESSANDO...</b></div>
+    <div id="status-countdown"></div>
+    <div id="loading"><div class="spinner"></div><b>FINALIZANDO VÍDEO...</b></div>
 
 <script>
     const WORKER_URL = "https://autographcam.maxprimefotovideo.workers.dev";
@@ -87,9 +85,9 @@
     const ctx = canvas.getContext('2d');
     const btn = document.getElementById('btn-shoot');
     const view = document.getElementById('moldura-view');
-    const timerDisplay = document.getElementById('recording-timer');
+    const timerText = document.getElementById('timer-gravacao');
     
-    let currentStream, useFrontCamera = false, isRecording = false;
+    let currentStream, useFrontCamera = false, gravando = false;
     const molduraImg = new Image();
     molduraImg.crossOrigin = "anonymous"; 
 
@@ -120,89 +118,82 @@
     };
 
     btn.onclick = () => {
-        if(isRecording) return;
-        let count = 3;
-        const status = document.getElementById('status');
+        if(gravando) return;
+        let c = 3;
+        const status = document.getElementById('status-countdown');
         status.style.display = 'flex';
-        status.innerText = count;
+        status.innerText = c;
         
-        let timer = setInterval(() => {
-            count--;
-            if(count > 0) status.innerText = count;
+        let t = setInterval(() => {
+            c--;
+            if(c > 0) status.innerText = c;
             else { 
-                clearInterval(timer); 
+                clearInterval(t); 
                 status.style.display = 'none'; 
-                iniciarFluxo(); 
+                executarGravacao(); 
             }
         }, 1000);
     };
 
-    function iniciarFluxo() {
-        isRecording = true;
+    function executarGravacao() {
+        gravando = true;
         const chunks = [];
         const config = JSON.parse(localStorage.getItem('config_atual'));
-        const tempoSegundos = config ? parseInt(config.tempo) : 10;
-        const pastaEvento = config ? (config.id_fixo || config.nome).replace(/\s+/g, '_') : "Geral";
+        const tempoTotal = config ? parseInt(config.tempo) : 10;
+        const pasta = config ? (config.id_fixo || config.nome).replace(/\s+/g, '_') : "Geral";
 
-        // Prepara o desenho contínuo no canvas ANTES de iniciar o recorder
+        // Prepara o stream do canvas
         const stream = canvas.captureStream(30);
-        
-        // Tenta encontrar o melhor mimeType suportado
-        const types = ['video/webm;codecs=vp8', 'video/webm', 'video/mp4'];
-        let supportedType = types.find(t => MediaRecorder.isTypeSupported(t));
-
         const recorder = new MediaRecorder(stream, { 
-            mimeType: supportedType,
+            mimeType: 'video/webm;codecs=vp8',
             videoBitsPerSecond: 2500000 
         });
 
         recorder.ondataavailable = e => { if(e.data.size > 0) chunks.push(e.data); };
 
         recorder.onstop = async () => {
-            isRecording = false;
-            timerDisplay.style.display = 'none';
+            gravando = false;
+            timerText.style.display = 'none';
             document.getElementById('loading').style.display = 'flex';
             
-            const blob = new Blob(chunks, { type: supportedType });
+            const blob = new Blob(chunks, { type: 'video/webm' });
             const fd = new FormData();
             fd.append("video", blob);
             fd.append("uuid", `vid_${Date.now()}.webm`);
-            fd.append("evento", pastaEvento);
+            fd.append("evento", pasta);
 
             try {
                 const res = await fetch(`${WORKER_URL}/upload`, { method: "POST", body: fd });
-                if(res.ok) window.location.href = "galeria.html";
-                else throw new Error();
-            } catch (err) {
-                alert("Erro no upload. Verifique sua conexão.");
-                document.getElementById('loading').style.display = 'none';
-            }
+                if(res.ok) window.location.href = `galeria.html?evento=${pasta}`;
+                else alert("Erro no envio.");
+            } catch (err) { alert("Erro de conexão."); }
+            document.getElementById('loading').style.display = 'none';
         };
 
-        // Loop de Renderização
-        function draw() {
-            if(!isRecording) return;
+        // Função de desenho contínuo
+        function render() {
+            if(!gravando) return;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             if (molduraImg.complete) {
                 ctx.drawImage(molduraImg, 0, 0, canvas.width, canvas.height);
             }
-            requestAnimationFrame(draw);
+            requestAnimationFrame(render);
         }
 
-        // Inicia
+        // Inicia o processo
         recorder.start();
-        draw();
+        render();
 
-        // Gerencia o contador de 10s na tela
-        let tempoRestante = tempoSegundos;
-        timerDisplay.style.display = 'block';
-        timerDisplay.innerText = `GRAVANDO: ${tempoRestante}s`;
+        // Gerenciamento do contador de 10s na tela
+        let restante = tempoTotal;
+        timerText.style.display = 'block';
+        timerText.innerText = `GRAVANDO: ${restante}s`;
 
-        let countdown = setInterval(() => {
-            tempoRestante--;
-            timerDisplay.innerText = `GRAVANDO: ${tempoRestante}s`;
-            if(tempoRestante <= 0) {
-                clearInterval(countdown);
+        let interval = setInterval(() => {
+            restante--;
+            timerText.innerText = `GRAVANDO: ${restante}s`;
+            if(restante <= 0) {
+                clearInterval(interval);
                 if(recorder.state === "recording") recorder.stop();
             }
         }, 1000);
