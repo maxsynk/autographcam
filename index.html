@@ -116,7 +116,8 @@
 
 <script>
     const SENHA_MESTRA = "1234"; 
-    const WORKER_URL = "https://photomovie.maxprimefotovideo.workers.dev";
+    // ATUALIZADO PARA O NOVO SUBDOMÍNIO
+    const WORKER_URL = "https://autographcam.maxprimefotovideo.workers.dev";
 
     window.onload = () => { if(sessionStorage.getItem('logado') === 'true') liberarSistema(); }
 
@@ -142,7 +143,8 @@
         const config = JSON.parse(localStorage.getItem('config_atual'));
         if (!config) { alert("Ative um evento primeiro!"); return; }
         const idEvento = config.id_fixo || config.nome;
-        const link = `https://maxsynk.github.io/photomovie/galeria.html?evento=${encodeURIComponent(idEvento)}`;
+        // ATUALIZADO PARA O REPOSITÓRIO CORRETO
+        const link = `https://maxsynk.github.io/autographcam/galeria.html?evento=${encodeURIComponent(idEvento)}`;
         navigator.clipboard.writeText(link).then(() => { alert("Link copiado!"); });
     }
 
@@ -161,7 +163,7 @@
 
             container.innerHTML = '';
             eventos.forEach((ev) => {
-                const estaAtivo = eventoAtivoConfig && eventoAtivoConfig.id === ev.id;
+                const estaAtivo = eventoAtivoConfig && (eventoAtivoConfig.id === ev.id || eventoAtivoConfig.nome === ev.nome);
                 const evData = JSON.stringify(ev).replace(/"/g, '&quot;');
                 const card = document.createElement('div');
                 card.className = `event-card ${estaAtivo ? 'active-border' : ''}`;
@@ -169,11 +171,11 @@
                     <div class="event-info-col">
                         <div class="event-info">
                             <h4>${ev.nome.replace(/_/g, ' ')}</h4>
-                            <span>DATA: ${ev.data || '--/--/--'} | DURAÇÃO: ${ev.tempo}s</span>
+                            <span>EVENTO ATIVO NO BANCO</span>
                         </div>
                         <div class="group-actions-row">
                             <button class="status-btn ${estaAtivo ? 'btn-is-on' : 'btn-is-off'}" onclick='alternarAtivacao(${evData})'>
-                                ${estaAtivo ? '● ATIVO' : 'ATIVAR'}
+                                ${estaAtivo ? '● SELECIONADO' : 'SELECIONAR'}
                             </button>
                             <button class="btn-edit-big" onclick='irParaEditar(${evData})'>EDITAR</button>
                             <button class="btn-del-big" onclick="excluirEvento('${ev.id}', '${ev.nome}')">×</button>
@@ -184,7 +186,7 @@
                 container.appendChild(card);
             });
         } catch (err) { 
-            container.innerHTML = `<p style="color: #ff5555; text-align:center;">Erro de conexão.</p>`; 
+            container.innerHTML = `<p style="color: #ff5555; text-align:center;">Erro ao carregar eventos.</p>`; 
         }
     }
 
@@ -194,12 +196,7 @@
     }
 
     function alternarAtivacao(evento) {
-        const atual = JSON.parse(localStorage.getItem('config_atual'));
-        if (atual && atual.id === evento.id) {
-            localStorage.removeItem('config_atual');
-        } else {
-            localStorage.setItem('config_atual', JSON.stringify(evento));
-        }
+        localStorage.setItem('config_atual', JSON.stringify(evento));
         renderEventos();
     }
 
