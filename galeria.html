@@ -74,15 +74,15 @@
 
 <script>
     // URL ATUALIZADA
+    <!-- Mantenha o seu HTML/CSS igual, apenas substitua o <script> abaixo -->
+<script>
     const WORKER_URL = "https://autographcam.maxprimefotovideo.workers.dev";
     let listaArquivosAtuais = [];
     let idPastaFixo = ""; 
 
     function bloquearVoltar() {
         window.history.pushState(null, null, window.location.href);
-        window.onpopstate = function () {
-            window.history.go(1);
-        };
+        window.onpopstate = () => window.history.go(1);
     }
 
     let cliquesSaida = 0;
@@ -92,9 +92,7 @@
 
     function copiarLinkGaleria() {
         const link = `${window.location.origin}${window.location.pathname}?evento=${idPastaFixo}`;
-        navigator.clipboard.writeText(link).then(() => {
-            alert("Link da Galeria Copiado!");
-        });
+        navigator.clipboard.writeText(link).then(() => alert("Link da Galeria Copiado!"));
     }
 
     async function sincronizarInterface() {
@@ -114,9 +112,12 @@
         document.getElementById('nome-evento-titulo').innerText = idPastaFixo.replace(/_/g, ' ');
 
         try {
-            const res = await fetch(`${WORKER_URL}/listar-galeria?evento=${encodeURIComponent(idPastaFixo)}`);
+            // CORREÇÃO: Usando a rota correta que configuramos na Worker
+            const res = await fetch(`${WORKER_URL}/listar-videos-evento?evento=${encodeURIComponent(idPastaFixo)}`);
             const dados = await res.json();
-            const novos = dados.filter(f => f.path.toLowerCase().includes('autograph_') || f.path.toLowerCase().includes('final_'));
+            
+            // Filtra para exibir apenas os vídeos que já passaram pelo Python (prefixo autograph_)
+            const novos = dados.filter(f => f.video_path.toLowerCase().includes('autograph_'));
             
             if (JSON.stringify(novos) !== JSON.stringify(listaArquivosAtuais)) {
                 listaArquivosAtuais = novos;
@@ -131,15 +132,15 @@
         const container = document.getElementById('gallery-container');
         container.innerHTML = "";
         if (listaArquivosAtuais.length === 0) {
-            container.innerHTML = "<p style='grid-column: 1/-1; opacity:0.5; margin-top:50px;'>Aguardando vídeos...</p>";
+            container.innerHTML = "<p style='grid-column: 1/-1; opacity:0.5; margin-top:50px;'>Aguardando vídeos processados...</p>";
             return;
         }
         listaArquivosAtuais.forEach((file, index) => {
-            const url = `${WORKER_URL}/stream?id=${encodeURIComponent(file.path)}`;
+            const url = `${WORKER_URL}/stream?id=${encodeURIComponent(file.video_path)}`;
             const card = document.createElement('div');
             card.className = 'video-card';
             card.innerHTML = `<div class="video-number">#${index + 1}</div><video src="${url}#t=0.5" muted playsinline></video>`;
-            card.onclick = () => abrirZoom(url, file.path);
+            card.onclick = () => abrirZoom(url, file.video_path);
             container.appendChild(card);
         });
     }
@@ -149,7 +150,7 @@
         const index = parseInt(input) - 1;
         if (listaArquivosAtuais[index]) {
             const file = listaArquivosAtuais[index];
-            abrirZoom(`${WORKER_URL}/stream?id=${encodeURIComponent(file.path)}`, file.path);
+            abrirZoom(`${WORKER_URL}/stream?id=${encodeURIComponent(file.video_path)}`, file.video_path);
             document.getElementById('input-busca').value = "";
         } else {
             alert("Vídeo não encontrado.");
@@ -171,8 +172,9 @@
 
     function fecharZoom() {
         document.getElementById('modal-zoom').style.display = 'none';
-        document.getElementById('media-full').pause();
-        document.getElementById('media-full').src = "";
+        const v = document.getElementById('media-full');
+        v.pause();
+        v.src = "";
     }
 
     window.onload = () => {
