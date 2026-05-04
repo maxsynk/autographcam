@@ -59,18 +59,19 @@
         const urlParams = new URLSearchParams(window.location.search);
         let eventoDaUrl = urlParams.get('evento');
 
-        // Se não tem na URL, tenta pegar o último configurado no navegador
         if(!eventoDaUrl) {
             const cache = localStorage.getItem('config_atual');
-            if(cache) eventoDaUrl = JSON.parse(cache).id;
+            if(cache) {
+                try {
+                    const obj = JSON.parse(cache);
+                    eventoDaUrl = obj.id || obj.nome;
+                } catch(e) { eventoDaUrl = "Geral"; }
+            }
         }
 
         if(!eventoDaUrl) eventoDaUrl = "Geral";
         idPastaFixo = eventoDaUrl;
         
-        // Atualiza o título visual
-        document.getElementById('nome-evento-titulo').innerText = idPastaFixo.replace(/_/g, ' ');
-
         try {
             // 1. Busca os vídeos
             const resVids = await fetch(`${WORKER_URL}/listar-videos-evento?evento=${encodeURIComponent(idPastaFixo)}`);
@@ -81,41 +82,49 @@
                 renderizar();
             }
 
-            // 2. Tenta carregar os dados do evento (nome real, etc) se necessário
+            // 2. Busca Nome do Evento
             const resConf = await fetch(`${WORKER_URL}/get-config?evento=${encodeURIComponent(idPastaFixo)}`);
             const conf = await resConf.json();
-            if(conf.nome) {
-                document.getElementById('nome-evento-titulo').innerText = conf.nome.toUpperCase();
-            }
+            document.getElementById('nome-evento-titulo').innerText = (conf.nome || idPastaFixo).toUpperCase().replace(/_/g, ' ');
 
         } catch (e) {
-            console.error("Erro ao carregar dados do evento.");
+            console.log("Sincronizando...");
+            document.getElementById('nome-evento-titulo').innerText = idPastaFixo.toUpperCase().replace(/_/g, ' ');
         }
     }
 
     function renderizar() {
         const container = document.getElementById('gallery-container');
         container.innerHTML = "";
-        if (listaArquivosAtuais.length === 0) {
+        
+        if (!listaArquivosAtuais || listaArquivosAtuais.length === 0) {
             container.innerHTML = "<p style='grid-column: 1/-1; opacity:0.5; margin-top:50px;'>Aguardando vídeos processados...</p>";
             return;
         }
 
         [...listaArquivosAtuais].forEach((file, index) => {
-            const url = `${WORKER_URL}/stream?id=${encodeURIComponent(file.video_path)}`;
+            // O banco retorna 'path', ajustando para garantir o link correto
+            const caminhoVideo = file.path || file.video_path;
+            const url = `${WORKER_URL}/stream?id=${encodeURIComponent(caminhoVideo)}`;
+            
             const card = document.createElement('div');
             card.className = 'video-card';
-            card.innerHTML = `<div class="video-number">#${listaArquivosAtuais.length - index}</div><video src="${url}#t=0.5" muted playsinline></video>`;
-            card.onclick = () => abrirZoom(url, file.video_path);
+            card.innerHTML = `
+                <div class="video-number">#${listaArquivosAtuais.length - index}</div>
+                <video src="${url}#t=0.5" muted playsinline></video>
+            `;
+            card.onclick = () => abrirZoom(url, caminhoVideo);
             container.appendChild(card);
         });
     }
 
     function executarBusca() {
         const num = parseInt(document.getElementById('input-busca').value);
-        if (num > 0 && listaArquivosAtuais[listaArquivosAtuais.length - num]) {
-            const file = listaArquivosAtuais[listaArquivosAtuais.length - num];
-            abrirZoom(`${WORKER_URL}/stream?id=${encodeURIComponent(file.video_path)}`, file.video_path);
+        const index = listaArquivosAtuais.length - num;
+        if (num > 0 && listaArquivosAtuais[index]) {
+            const file = listaArquivosAtuais[index];
+            const caminhoVideo = file.path || file.video_path;
+            abrirZoom(`${WORKER_URL}/stream?id=${encodeURIComponent(caminhoVideo)}`, caminhoVideo);
         } else { alert("Vídeo não encontrado."); }
     }
 
@@ -126,14 +135,20 @@
         video.src = url;
         video.play();
         document.getElementById('btn-download-force').onclick = async () => {
-            const res = await fetch(url);
-            saveAs(await res.blob(), path.split('/').pop());
+            try {
+                const res = await fetch(url);
+                const blob = await res.blob();
+                saveAs(blob, path.split('/').pop());
+            } catch(e) { alert("Erro ao baixar vídeo."); }
         };
     }
 
     function fecharZoom() {
-        document.getElementById('modal-zoom').style.display = 'none';
-        document.getElementById('media-full').src = "";
+        const modal = document.getElementById('modal-zoom');
+        const video = document.getElementById('media-full');
+        modal.style.display = 'none';
+        video.pause();
+        video.src = "";
     }
 
     window.onload = () => {
