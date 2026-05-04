@@ -57,21 +57,40 @@
 
     async function sincronizarInterface() {
         const urlParams = new URLSearchParams(window.location.search);
-        idPastaFixo = urlParams.get('evento') || "Geral";
+        let eventoDaUrl = urlParams.get('evento');
+
+        // Se não tem na URL, tenta pegar o último configurado no navegador
+        if(!eventoDaUrl) {
+            const cache = localStorage.getItem('config_atual');
+            if(cache) eventoDaUrl = JSON.parse(cache).id;
+        }
+
+        if(!eventoDaUrl) eventoDaUrl = "Geral";
+        idPastaFixo = eventoDaUrl;
+        
+        // Atualiza o título visual
         document.getElementById('nome-evento-titulo').innerText = idPastaFixo.replace(/_/g, ' ');
 
         try {
-            const res = await fetch(`${WORKER_URL}/listar-videos-evento?evento=${encodeURIComponent(idPastaFixo)}`);
-            const dados = await res.json();
+            // 1. Busca os vídeos
+            const resVids = await fetch(`${WORKER_URL}/listar-videos-evento?evento=${encodeURIComponent(idPastaFixo)}`);
+            const vids = await resVids.json();
             
-            // Filtra apenas vídeos processados pelo motor (contém 'autograph_')
-            const novos = dados.filter(f => f.video_path.toLowerCase().includes('autograph_'));
-            
-            if (JSON.stringify(novos) !== JSON.stringify(listaArquivosAtuais)) {
-                listaArquivosAtuais = novos;
+            if (JSON.stringify(vids) !== JSON.stringify(listaArquivosAtuais)) {
+                listaArquivosAtuais = vids;
                 renderizar();
             }
-        } catch (e) { console.error("Erro na sincronização"); }
+
+            // 2. Tenta carregar os dados do evento (nome real, etc) se necessário
+            const resConf = await fetch(`${WORKER_URL}/get-config?evento=${encodeURIComponent(idPastaFixo)}`);
+            const conf = await resConf.json();
+            if(conf.nome) {
+                document.getElementById('nome-evento-titulo').innerText = conf.nome.toUpperCase();
+            }
+
+        } catch (e) {
+            console.error("Erro ao carregar dados do evento.");
+        }
     }
 
     function renderizar() {
