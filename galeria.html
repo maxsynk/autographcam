@@ -57,39 +57,22 @@
 
     async function sincronizarInterface() {
         const urlParams = new URLSearchParams(window.location.search);
-        let eventoDaUrl = urlParams.get('evento');
-
-        if(!eventoDaUrl) {
-            const cache = localStorage.getItem('config_atual');
-            if(cache) {
-                try {
-                    const obj = JSON.parse(cache);
-                    eventoDaUrl = obj.id || obj.nome;
-                } catch(e) { eventoDaUrl = "Geral"; }
-            }
-        }
-
-        if(!eventoDaUrl) eventoDaUrl = "Geral";
-        idPastaFixo = eventoDaUrl;
+        idPastaFixo = urlParams.get('evento') || "Geral";
         
         try {
-            // 1. Busca os vídeos
-            const resVids = await fetch(`${WORKER_URL}/listar-videos-evento?evento=${encodeURIComponent(idPastaFixo)}`);
-            const vids = await resVids.json();
+            const res = await fetch(`${WORKER_URL}/listar-videos-evento?evento=${encodeURIComponent(idPastaFixo)}`);
+            const dados = await res.json();
             
-            if (JSON.stringify(vids) !== JSON.stringify(listaArquivosAtuais)) {
-                listaArquivosAtuais = vids;
+            // Compara para não recarregar a tela à toa
+            if (JSON.stringify(dados) !== JSON.stringify(listaArquivosAtuais)) {
+                listaArquivosAtuais = dados;
                 renderizar();
             }
 
-            // 2. Busca Nome do Evento
-            const resConf = await fetch(`${WORKER_URL}/get-config?evento=${encodeURIComponent(idPastaFixo)}`);
-            const conf = await resConf.json();
-            document.getElementById('nome-evento-titulo').innerText = (conf.nome || idPastaFixo).toUpperCase().replace(/_/g, ' ');
-
-        } catch (e) {
-            console.log("Sincronizando...");
+            // Atualiza o título baseado no que foi retornado ou no ID
             document.getElementById('nome-evento-titulo').innerText = idPastaFixo.toUpperCase().replace(/_/g, ' ');
+        } catch (e) { 
+            console.error("Erro na sincronização"); 
         }
     }
 
@@ -98,25 +81,29 @@
         container.innerHTML = "";
         
         if (!listaArquivosAtuais || listaArquivosAtuais.length === 0) {
-            container.innerHTML = "<p style='grid-column: 1/-1; opacity:0.5; margin-top:50px;'>Aguardando vídeos processados...</p>";
+            container.innerHTML = "<p style='grid-column: 1/-1; opacity:0.5; margin-top:50px;'>Nenhum vídeo processado encontrado...</p>";
             return;
         }
 
-        [...listaArquivosAtuais].forEach((file, index) => {
-            // O banco retorna 'path', ajustando para garantir o link correto
-            const caminhoVideo = file.path || file.video_path;
-            const url = `${WORKER_URL}/stream?id=${encodeURIComponent(caminhoVideo)}`;
-            
+        listaArquivosAtuais.forEach((file, index) => {
+            // USANDO A COLUNA 'path' QUE APARECE NO SEU PRINT
+            const url = `${WORKER_URL}/stream?id=${encodeURIComponent(file.path)}`;
             const card = document.createElement('div');
             card.className = 'video-card';
             card.innerHTML = `
                 <div class="video-number">#${listaArquivosAtuais.length - index}</div>
-                <video src="${url}#t=0.5" muted playsinline></video>
+                <video src="${url}#t=0.1" muted playsinline></video>
             `;
-            card.onclick = () => abrirZoom(url, caminhoVideo);
+            card.onclick = () => abrirZoom(url, file.path);
             container.appendChild(card);
         });
     }
+
+    // Mantenha as funções abrirZoom, fecharZoom e executarBusca que já funcionam.
+    window.onload = () => {
+        sincronizarInterface();
+        setInterval(sincronizarInterface, 5000);
+    };
 
     function executarBusca() {
         const num = parseInt(document.getElementById('input-busca').value);
