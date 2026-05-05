@@ -16,7 +16,6 @@
         
         #cam-container { width: 100vw; height: 100vh; position: relative; display: flex; flex-direction: column; }
         
-        /* Preview espelhado para o usuário (Efeito Selfie) */
         video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
         
         #moldura-view { 
@@ -35,7 +34,6 @@
             color: var(--accent); text-transform: lowercase; margin-top: 5px;
         }
 
-        /* Contador regressivo pequeno solicitado */
         #timer-regressivo {
             display: none; color: #FFF; font-size: 18px; font-weight: bold;
             margin-top: 10px; opacity: 0.9;
@@ -54,14 +52,11 @@
             cursor: pointer; font-size: 22px; backdrop-filter: blur(10px);
         }
 
-        .shutter-container { position: relative; }
         .shutter-trigger { 
             width: 85px; height: 85px; border-radius: 50%; 
             background: transparent; border: 5px solid var(--accent); 
             cursor: pointer; position: relative; z-index: 105;
-            transition: transform 0.2s;
         }
-        .shutter-trigger:active { transform: scale(0.9); }
         .shutter-trigger::after {
             content: ''; position: absolute; inset: -12px;
             border-radius: 50%; border: 2px solid var(--accent);
@@ -72,17 +67,6 @@
             0% { transform: scale(1); opacity: 0.6; }
             100% { transform: scale(1.4); opacity: 0; }
         }
-
-        #iris-overlay {
-            position: fixed; inset: 0; z-index: 500;
-            pointer-events: none; display: flex; align-items: center; justify-content: center;
-        }
-
-        .iris-svg { width: 150vmax; height: 150vmax; transform: rotate(0deg); transition: transform 0.8s ease; }
-        .iris-blade { fill: #000; transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1); transform-origin: center; }
-
-        .closed .iris-blade { transform: scale(1.2); }
-        .closed .iris-svg { transform: rotate(45deg); }
 
         #status { position: fixed; inset: 0; display: none; background: rgba(14, 26, 37, 0.4); color: var(--text-main); font-size: 140px; align-items: center; justify-content: center; z-index: 200; font-weight: 900; text-shadow: 0 0 30px var(--accent); }
         
@@ -95,19 +79,6 @@
     </style>
 </head>
 <body>
-
-    <div id="iris-overlay">
-        <svg class="iris-svg" viewBox="0 0 100 100">
-            <path class="iris-blade" d="M50,50 L100,0 L100,100 Z" style="transform: rotate(0deg) translate(100%, 0);"></path>
-            <path class="iris-blade" d="M50,50 L100,0 L100,100 Z" style="transform: rotate(45deg) translate(100%, 0);"></path>
-            <path class="iris-blade" d="M50,50 L100,0 L100,100 Z" style="transform: rotate(90deg) translate(100%, 0);"></path>
-            <path class="iris-blade" d="M50,50 L100,0 L100,100 Z" style="transform: rotate(135deg) translate(100%, 0);"></path>
-            <path class="iris-blade" d="M50,50 L100,0 L100,100 Z" style="transform: rotate(180deg) translate(100%, 0);"></path>
-            <path class="iris-blade" d="M50,50 L100,0 L100,100 Z" style="transform: rotate(225deg) translate(100%, 0);"></path>
-            <path class="iris-blade" d="M50,50 L100,0 L100,100 Z" style="transform: rotate(270deg) translate(100%, 0);"></path>
-            <path class="iris-blade" d="M50,50 L100,0 L100,100 Z" style="transform: rotate(315deg) translate(100%, 0);"></path>
-        </svg>
-    </div>
 
     <div id="cam-container">
         <div class="event-overlay">
@@ -143,32 +114,18 @@
     const ctx = canvas.getContext('2d');
     const btn = document.getElementById('btn-shoot');
     const view = document.getElementById('moldura-view');
-    const iris = document.getElementById('iris-overlay');
     const timerDisplay = document.getElementById('timer-regressivo');
     
     let currentStream;
-    let useFrontCamera = false; // Começa com a traseira (environment)
+    let useFrontCamera = false;
+    let recorder;
     const molduraImg = new Image();
     molduraImg.crossOrigin = "anonymous"; 
-
-    function triggerIris(callback) {
-        iris.classList.add('closed');
-        setTimeout(() => {
-            if(callback) callback();
-            setTimeout(() => {
-                iris.classList.remove('closed');
-            }, 300);
-        }, 600);
-    }
 
     async function startCamera() {
         if (currentStream) currentStream.getTracks().forEach(track => track.stop());
         const constraints = {
-            video: { 
-                facingMode: useFrontCamera ? "user" : "environment", 
-                width: { ideal: 1280 }, 
-                height: { ideal: 720 } 
-            },
+            video: { facingMode: useFrontCamera ? "user" : "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
             audio: false
         };
         try {
@@ -179,7 +136,7 @@
 
     function toggleCamera() {
         useFrontCamera = !useFrontCamera;
-        triggerIris(() => startCamera());
+        startCamera();
     }
 
     window.onload = async () => {
@@ -209,7 +166,7 @@
             else { 
                 clearInterval(t); 
                 status.style.display = 'none'; 
-                triggerIris(() => iniciarGravacao()); 
+                iniciarGravacao(); 
             }
         }, 1000);
     };
@@ -218,35 +175,11 @@
         const chunks = [];
         const config = JSON.parse(localStorage.getItem('config_atual'));
         const segsTotais = (config ? parseInt(config.tempo) : 10);
-        const tempoMs = segsTotais * 1000;
-        
-        // CORREÇÃO DE NOME: Garante que o vídeo vá para a pasta correta do evento
         const nomeEvento = config ? (config.nome.replace(/\s+/g, '_')) : "Geral";
 
-        let recorder;
         let tempoRestante = segsTotais;
-
-        // Ativa contador pequeno branco abaixo do subtítulo
         timerDisplay.style.display = 'block';
         timerDisplay.innerText = tempoRestante + "s";
-        let timerInt = setInterval(() => {
-            tempoRestante--;
-            timerDisplay.innerText = tempoRestante + "s";
-            if(tempoRestante <= 0) clearInterval(timerInt);
-        }, 1000);
-
-        const loop = () => {
-            if (video.paused || video.ended) return;
-            ctx.save();
-            
-            // GRAVAÇÃO NÃO ESPELHADA: 
-            // Desenhamos o vídeo original diretamente para que textos fiquem legíveis
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            ctx.restore();
-            
-            if (molduraImg.complete) ctx.drawImage(molduraImg, 0, 0, canvas.width, canvas.height);
-            if (recorder && recorder.state === "recording") requestAnimationFrame(loop);
-        };
 
         const stream = canvas.captureStream(30);
         recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8', videoBitsPerSecond: 5000000 });
@@ -255,15 +188,29 @@
         
         recorder.onstop = async () => {
             timerDisplay.style.display = 'none';
-            triggerIris(() => {
-                document.getElementById('loading').style.display = 'flex';
-                enviarVideo(chunks, nomeEvento);
-            });
+            document.getElementById('loading').style.display = 'flex';
+            await enviarVideo(chunks, nomeEvento);
+        };
+
+        const loop = () => {
+            if (video.paused || video.ended || (recorder && recorder.state !== "recording")) return;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            if (molduraImg.complete) ctx.drawImage(molduraImg, 0, 0, canvas.width, canvas.height);
+            requestAnimationFrame(loop);
         };
 
         recorder.start();
         loop(); 
-        setTimeout(() => { if(recorder.state === "recording") recorder.stop(); }, tempoMs);
+
+        let timerInt = setInterval(() => {
+            tempoRestante--;
+            if(tempoRestante <= 0) {
+                clearInterval(timerInt);
+                if(recorder.state === "recording") recorder.stop();
+            } else {
+                timerDisplay.innerText = tempoRestante + "s";
+            }
+        }, 1000);
     }
 
     async function enviarVideo(chunks, nomeEvento) {
@@ -271,7 +218,7 @@
         const fd = new FormData();
         fd.append("video", blob);
         fd.append("uuid", "autograph_" + Date.now() + ".webm");
-        fd.append("evento", nomeEvento); 
+        fd.append("evento", nomeEvento);
 
         try {
             const res = await fetch(`${WORKER_URL}/upload`, { method: "POST", body: fd });
