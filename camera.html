@@ -119,6 +119,7 @@
     let currentStream;
     let useFrontCamera = false;
     let recorder;
+    let chunks = [];
     const molduraImg = new Image();
     molduraImg.crossOrigin = "anonymous"; 
 
@@ -172,17 +173,19 @@
     };
 
     function iniciarGravacao() {
-        const chunks = [];
+        chunks = [];
         const config = JSON.parse(localStorage.getItem('config_atual'));
         const segsTotais = (config ? parseInt(config.tempo) : 10);
         const nomeEvento = config ? (config.nome.replace(/\s+/g, '_')) : "Geral";
 
-        let tempoRestante = segsTotais;
-        timerDisplay.style.display = 'block';
-        timerDisplay.innerText = tempoRestante + "s";
-
+        // Prepara o stream do canvas ANTES de tudo
         const stream = canvas.captureStream(30);
-        recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8', videoBitsPerSecond: 5000000 });
+        
+        // Inicializa o recorder
+        recorder = new MediaRecorder(stream, { 
+            mimeType: 'video/webm;codecs=vp8', 
+            videoBitsPerSecond: 5000000 
+        });
         
         recorder.ondataavailable = e => { if(e.data.size > 0) chunks.push(e.data); };
         
@@ -192,29 +195,47 @@
             await enviarVideo(chunks, nomeEvento);
         };
 
+        // LOOP DE DESENHO (Inicia antes do start para ter frame pronto)
         const loop = () => {
-            if (video.paused || video.ended || (recorder && recorder.state !== "recording")) return;
+            if (video.paused || video.ended) return;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             if (molduraImg.complete) ctx.drawImage(molduraImg, 0, 0, canvas.width, canvas.height);
-            requestAnimationFrame(loop);
+            if (recorder && recorder.state === "recording") {
+                requestAnimationFrame(loop);
+            }
         };
 
+        // INICIA GRAVAÇÃO
         recorder.start();
         loop(); 
+
+        // INICIA CONTADOR
+        let tempoRestante = segsTotais;
+        timerDisplay.style.display = 'block';
+        timerDisplay.innerText = tempoRestante + "s";
 
         let timerInt = setInterval(() => {
             tempoRestante--;
             if(tempoRestante <= 0) {
                 clearInterval(timerInt);
-                if(recorder.state === "recording") recorder.stop();
+                timerDisplay.innerText = "0s";
+                if(recorder && recorder.state === "recording") {
+                    recorder.stop();
+                }
             } else {
                 timerDisplay.innerText = tempoRestante + "s";
             }
         }, 1000);
     }
 
-    async function enviarVideo(chunks, nomeEvento) {
-        const blob = new Blob(chunks, { type: 'video/webm' });
+    async function enviarVideo(videoChunks, nomeEvento) {
+        if (videoChunks.length === 0) {
+            alert("Erro: Nenhum dado de vídeo capturado.");
+            document.getElementById('loading').style.display = 'none';
+            return;
+        }
+
+        const blob = new Blob(videoChunks, { type: 'video/webm' });
         const fd = new FormData();
         fd.append("video", blob);
         fd.append("uuid", "autograph_" + Date.now() + ".webm");
@@ -222,9 +243,14 @@
 
         try {
             const res = await fetch(`${WORKER_URL}/upload`, { method: "POST", body: fd });
-            if(res.ok) window.location.href = "galeria.html";
-            else alert("Erro no upload.");
-        } catch (err) { alert("Erro de conexão."); }
+            if(res.ok) {
+                window.location.href = "galeria.html";
+            } else {
+                alert("Erro no upload do arquivo.");
+            }
+        } catch (err) { 
+            alert("Erro de rede durante o envio."); 
+        }
         document.getElementById('loading').style.display = 'none';
     }
 </script>
