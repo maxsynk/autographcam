@@ -16,6 +16,7 @@
         
         #cam-container { width: 100vw; height: 100vh; position: relative; display: flex; flex-direction: column; }
         
+        /* Preview espelhado para o usuário */
         video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
         
         #moldura-view { 
@@ -35,8 +36,8 @@
         }
 
         #timer-regressivo {
-            display: none; color: #FFF; font-size: 18px; font-weight: bold;
-            margin-top: 10px; opacity: 0.9;
+            display: none; color: #FFF; font-size: 20px; font-weight: bold;
+            margin-top: 10px; opacity: 1; text-shadow: 0 0 10px rgba(0,0,0,0.5);
         }
 
         .controls-wrapper {
@@ -68,7 +69,7 @@
             100% { transform: scale(1.4); opacity: 0; }
         }
 
-        #status { position: fixed; inset: 0; display: none; background: rgba(14, 26, 37, 0.4); color: var(--text-main); font-size: 140px; align-items: center; justify-content: center; z-index: 200; font-weight: 900; text-shadow: 0 0 30px var(--accent); }
+        #status { position: fixed; inset: 0; display: none; background: rgba(14, 26, 37, 0.6); color: var(--text-main); font-size: 140px; align-items: center; justify-content: center; z-index: 200; font-weight: 900; }
         
         #loading { 
             position: fixed; inset: 0; display: none; background: var(--bg-deep); color: var(--text-main); 
@@ -92,9 +93,7 @@
 
         <div class="controls-wrapper">
             <div class="side-btn" onclick="window.location.href='index.html'">✕</div>
-            <div class="shutter-container">
-                <div class="shutter-trigger" id="btn-shoot"></div>
-            </div>
+            <div class="shutter-trigger" id="btn-shoot"></div>
             <div class="side-btn" onclick="toggleCamera()">🔄</div>
         </div>
     </div>
@@ -140,10 +139,10 @@
         startCamera();
     }
 
-    window.onload = async () => {
+    window.onload = () => {
         const config = JSON.parse(localStorage.getItem('config_atual'));
         if (config) {
-            document.getElementById('txt-evento').innerText = config.nome.replace(/_/g, ' ') || "AUTOGRAPH CAM";
+            document.getElementById('txt-evento').innerText = config.nome || "AUTOGRAPH CAM";
             let molduraPath = config.molduraUrl || config.moldura;
             if (molduraPath) {
                 const urlFinal = `${WORKER_URL}/stream?id=${molduraPath.includes('id=') ? molduraPath.split('id=')[1] : molduraPath}`;
@@ -156,6 +155,7 @@
     };
 
     btn.onclick = () => {
+        btn.style.pointerEvents = 'none';
         let c = 3;
         const status = document.getElementById('status');
         status.style.display = 'flex';
@@ -175,63 +175,56 @@
     function iniciarGravacao() {
         chunks = [];
         const config = JSON.parse(localStorage.getItem('config_atual'));
-        const segsTotais = (config ? parseInt(config.tempo) : 10);
-        const nomeEvento = config ? (config.nome.replace(/\s+/g, '_')) : "Geral";
+        const tempoSegundos = (config ? parseInt(config.tempo) : 10);
+        const nomeEvento = config ? (config.id_fixo || config.nome.replace(/\s+/g, '_')) : "Geral";
 
-        // Prepara o stream do canvas ANTES de tudo
         const stream = canvas.captureStream(30);
-        
-        // Inicializa o recorder
         recorder = new MediaRecorder(stream, { 
             mimeType: 'video/webm;codecs=vp8', 
-            videoBitsPerSecond: 5000000 
+            videoBitsPerSecond: 3000000 
         });
-        
+
         recorder.ondataavailable = e => { if(e.data.size > 0) chunks.push(e.data); };
-        
+
         recorder.onstop = async () => {
             timerDisplay.style.display = 'none';
             document.getElementById('loading').style.display = 'flex';
             await enviarVideo(chunks, nomeEvento);
         };
 
-        // LOOP DE DESENHO (Inicia antes do start para ter frame pronto)
-        const loop = () => {
-            if (video.paused || video.ended) return;
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            if (molduraImg.complete) ctx.drawImage(molduraImg, 0, 0, canvas.width, canvas.height);
+        const drawLoop = () => {
             if (recorder && recorder.state === "recording") {
-                requestAnimationFrame(loop);
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                if (molduraImg.complete) ctx.drawImage(molduraImg, 0, 0, canvas.width, canvas.height);
+                requestAnimationFrame(drawLoop);
             }
         };
 
-        // INICIA GRAVAÇÃO
         recorder.start();
-        loop(); 
+        drawLoop();
 
-        // INICIA CONTADOR
-        let tempoRestante = segsTotais;
+        let restante = tempoSegundos;
         timerDisplay.style.display = 'block';
-        timerDisplay.innerText = tempoRestante + "s";
+        timerDisplay.innerText = restante + "s";
 
-        let timerInt = setInterval(() => {
-            tempoRestante--;
-            if(tempoRestante <= 0) {
-                clearInterval(timerInt);
+        let countdown = setInterval(() => {
+            restante--;
+            if (restante <= 0) {
+                clearInterval(countdown);
                 timerDisplay.innerText = "0s";
-                if(recorder && recorder.state === "recording") {
-                    recorder.stop();
+                if (recorder && recorder.state === "recording") {
+                    recorder.stop(); // Isso dispara o enviarVideo automaticamente
                 }
             } else {
-                timerDisplay.innerText = tempoRestante + "s";
+                timerDisplay.innerText = restante + "s";
             }
         }, 1000);
     }
 
     async function enviarVideo(videoChunks, nomeEvento) {
         if (videoChunks.length === 0) {
-            alert("Erro: Nenhum dado de vídeo capturado.");
-            document.getElementById('loading').style.display = 'none';
+            alert("Erro: Vídeo vazio.");
+            location.reload();
             return;
         }
 
@@ -246,12 +239,13 @@
             if(res.ok) {
                 window.location.href = "galeria.html";
             } else {
-                alert("Erro no upload do arquivo.");
+                alert("Erro no servidor. Tente novamente.");
+                location.reload();
             }
         } catch (err) { 
-            alert("Erro de rede durante o envio."); 
+            alert("Erro de conexão."); 
+            location.reload();
         }
-        document.getElementById('loading').style.display = 'none';
     }
 </script>
 </body>
