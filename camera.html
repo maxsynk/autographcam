@@ -21,7 +21,6 @@
             display: flex; flex-direction: column;
         }
 
-        /* Preview sempre espelhado via CSS */
         video { 
             width: 100%; height: 100%; object-fit: cover; background: #000;
             transform: scaleX(-1); 
@@ -100,7 +99,6 @@
         </div>
     </div>
 
-    <!-- Canvas para gravação 720x1280 -->
     <canvas id="recorder-canvas" width="720" height="1280" style="display:none;"></canvas>
 
     <div id="loader">
@@ -119,9 +117,9 @@
     let stream;
     let recorder;
     let chunks = [];
-    let isFrontCamera = false; // Começa com a traseira conforme solicitado
+    let isFrontCamera = false; 
     let isRecording = false;
-    let mirrorMode = true; // Sempre espelhada conforme solicitado
+    let mirrorMode = true; 
 
     async function initCamera() {
         if (stream) stream.getTracks().forEach(t => t.stop());
@@ -137,7 +135,7 @@
             stream = await navigator.mediaDevices.getUserMedia(constraints);
             video.srcObject = stream;
         } catch (err) {
-            alert("Erro ao acessar câmera. Verifique as permissões.");
+            alert("Erro ao acessar câmera.");
         }
     }
 
@@ -209,19 +207,14 @@
         const draw = () => {
             if (recorder && recorder.state === "recording") {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-                
-                // Gravação SEMPRE ESPELHADA (Scale -1)
                 ctx.save();
                 ctx.scale(-1, 1);
-                // Ao usar scale -1, desenhamos na posição negativa da largura
                 ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
                 ctx.restore();
 
-                // Moldura NORMAL (por cima do vídeo espelhado)
                 if (molduraImg.complete && molduraImg.naturalWidth !== 0) {
                     ctx.drawImage(molduraImg, 0, 0, canvas.width, canvas.height);
                 }
-                
                 requestAnimationFrame(draw);
             }
         };
@@ -246,8 +239,11 @@
         document.getElementById('timer-display').style.display = 'none';
         document.getElementById('recording-dot').style.display = 'none';
 
+        // CORREÇÃO DO LUGAR ERRADO: Garantir que o nome do evento seja capturado corretamente
         const config = JSON.parse(localStorage.getItem('config_atual'));
-        const eventFolder = config ? config.nome.replace(/\s+/g, '_') : "Geral";
+        const eventNameRaw = config && config.nome ? config.nome : "Geral";
+        // Remove espaços e caracteres especiais para evitar erros de pasta no R2/Worker
+        const eventFolder = eventNameRaw.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '_');
         
         const extension = recorder.mimeType.includes('mp4') ? 'mp4' : 'webm';
         const blob = new Blob(chunks, { type: recorder.mimeType });
@@ -260,9 +256,10 @@
         try {
             const res = await fetch(`${WORKER_URL}/upload`, { method: "POST", body: formData });
             if (res.ok) {
-                window.location.href = 'galeria.html';
+                // REDIRECIONAMENTO PARA GALERIA_ADMIN
+                window.location.href = 'galeria_admin.html';
             } else {
-                alert("Erro ao processar vídeo.");
+                alert("Erro ao enviar vídeo.");
                 resetUI();
             }
         } catch (err) {
