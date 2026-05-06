@@ -21,7 +21,11 @@
             display: flex; flex-direction: column;
         }
 
-        video { width: 100%; height: 100%; object-fit: cover; background: #000; }
+        /* Preview sempre espelhado via CSS */
+        video { 
+            width: 100%; height: 100%; object-fit: cover; background: #000;
+            transform: scaleX(-1); 
+        }
         
         #moldura-overlay {
             position: absolute; inset: 0; width: 100%; height: 100%; 
@@ -96,7 +100,7 @@
         </div>
     </div>
 
-    <!-- Canvas para processamento em 720x1280 (Vertical HD) -->
+    <!-- Canvas para gravação 720x1280 -->
     <canvas id="recorder-canvas" width="720" height="1280" style="display:none;"></canvas>
 
     <div id="loader">
@@ -115,9 +119,9 @@
     let stream;
     let recorder;
     let chunks = [];
-    let isFrontCamera = false;
+    let isFrontCamera = false; // Começa com a traseira conforme solicitado
     let isRecording = false;
-    let mirrorMode = true; 
+    let mirrorMode = true; // Sempre espelhada conforme solicitado
 
     async function initCamera() {
         if (stream) stream.getTracks().forEach(t => t.stop());
@@ -132,8 +136,6 @@
         try {
             stream = await navigator.mediaDevices.getUserMedia(constraints);
             video.srcObject = stream;
-            // Espelhamento visual apenas no preview
-            video.style.transform = mirrorMode ? "scaleX(-1)" : "scaleX(1)";
         } catch (err) {
             alert("Erro ao acessar câmera. Verifique as permissões.");
         }
@@ -142,8 +144,6 @@
     function switchCamera() {
         if (isRecording) return;
         isFrontCamera = !isFrontCamera;
-        // Geralmente espelhamos a frontal e não a traseira
-        mirrorMode = isFrontCamera; 
         initCamera();
     }
 
@@ -189,7 +189,6 @@
         const config = JSON.parse(localStorage.getItem('config_atual'));
         const duration = (config ? parseInt(config.tempo) : 10);
         
-        // Melhora compatibilidade de formato (WebM vs MP4)
         let mimeType = 'video/webm;codecs=vp8';
         if (!MediaRecorder.isTypeSupported(mimeType)) {
             mimeType = 'video/mp4'; 
@@ -211,17 +210,14 @@
             if (recorder && recorder.state === "recording") {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 
-                // Gravação do Vídeo (Com espelhamento se ativo)
+                // Gravação SEMPRE ESPELHADA (Scale -1)
                 ctx.save();
-                if (mirrorMode) {
-                    ctx.scale(-1, 1);
-                    ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
-                } else {
-                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                }
+                ctx.scale(-1, 1);
+                // Ao usar scale -1, desenhamos na posição negativa da largura
+                ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
                 ctx.restore();
 
-                // Gravação da Moldura (Sempre por cima e SEM espelhar)
+                // Moldura NORMAL (por cima do vídeo espelhado)
                 if (molduraImg.complete && molduraImg.naturalWidth !== 0) {
                     ctx.drawImage(molduraImg, 0, 0, canvas.width, canvas.height);
                 }
@@ -253,7 +249,6 @@
         const config = JSON.parse(localStorage.getItem('config_atual'));
         const eventFolder = config ? config.nome.replace(/\s+/g, '_') : "Geral";
         
-        // Salva com a extensão correta baseada no mimetype usado
         const extension = recorder.mimeType.includes('mp4') ? 'mp4' : 'webm';
         const blob = new Blob(chunks, { type: recorder.mimeType });
         
@@ -267,11 +262,11 @@
             if (res.ok) {
                 window.location.href = 'galeria.html';
             } else {
-                alert("Erro ao enviar vídeo para o servidor.");
+                alert("Erro ao processar vídeo.");
                 resetUI();
             }
         } catch (err) {
-            alert("Erro de conexão com o servidor.");
+            alert("Erro de conexão.");
             resetUI();
         }
     }
