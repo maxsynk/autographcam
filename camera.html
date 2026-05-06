@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AUTOGRAPH CAM - Estável</title>
+    <title>AUTOGRAPH CAM - Pro</title>
     <style>
         :root {
             --bg: #0E1A25;
@@ -12,134 +12,73 @@
         }
 
         body { 
-            margin: 0; 
-            background: var(--bg); 
-            font-family: sans-serif; 
-            overflow: hidden; 
-            color: var(--white);
+            margin: 0; background: var(--bg); font-family: sans-serif; 
+            overflow: hidden; color: var(--white); touch-action: none;
         }
 
-        /* Container da Câmera */
         #app {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
+            position: relative; width: 100vw; height: 100vh;
+            display: flex; flex-direction: column;
         }
 
-        video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            background: #000;
-        }
+        /* Preview na tela */
+        video { width: 100%; height: 100%; object-fit: cover; background: #000; }
+        
+        /* Classe para espelhar a imagem na tela */
+        .mirror-view { transform: scaleX(-1); }
 
-        /* Classe para espelhar apenas a frontal */
-        .mirror { transform: scaleX(-1); }
-
-        /* Moldura sobreposta */
         #moldura-overlay {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 5;
-            display: none;
+            position: absolute; inset: 0; width: 100%; height: 100%; 
+            pointer-events: none; z-index: 5; display: none; object-fit: fill;
         }
 
-        /* Cabeçalho */
         .header {
-            position: absolute;
-            top: 20px;
-            width: 100%;
-            text-align: center;
-            z-index: 10;
+            position: absolute; top: 40px; width: 100%; text-align: center; z-index: 10;
         }
 
         #event-name {
-            display: block;
-            font-weight: bold;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
+            display: block; font-weight: bold; letter-spacing: 2px; text-transform: uppercase;
+            text-shadow: 2px 2px 10px rgba(0,0,0,0.8); font-size: 14px;
         }
 
         #timer-display {
-            font-size: 24px;
-            font-weight: bold;
-            margin-top: 10px;
-            display: none;
+            font-size: 28px; font-weight: bold; margin-top: 15px;
+            background: rgba(0,0,0,0.3); display: inline-block; padding: 5px 15px; border-radius: 20px;
         }
 
-        /* Controles Inferiores */
+        /* Controles - Subidos para não cortar */
         .controls {
-            position: absolute;
-            bottom: 40px;
-            width: 100%;
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            z-index: 10;
+            position: absolute; bottom: 85px; width: 100%;
+            display: flex; justify-content: space-around; align-items: center; z-index: 10;
         }
 
         .btn {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            border: 2px solid var(--accent);
-            background: rgba(0,0,0,0.4);
-            color: white;
-            font-size: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            backdrop-filter: blur(5px);
+            width: 65px; height: 65px; border-radius: 50%; border: 2px solid var(--accent);
+            background: rgba(14, 26, 37, 0.7); color: white; font-size: 24px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; backdrop-filter: blur(8px);
         }
 
         .shutter {
-            width: 80px;
-            height: 80px;
-            border: 4px solid var(--white);
-            background: transparent;
+            width: 90px; height: 90px; border: 5px solid var(--white); background: transparent;
         }
 
-        /* Feedback de gravação */
         #recording-dot {
-            width: 12px;
-            height: 12px;
-            background: red;
-            border-radius: 50%;
-            display: none;
-            margin: 0 auto 5px;
+            width: 15px; height: 15px; background: #ff0000; border-radius: 50%;
+            display: none; margin: 0 auto 10px; box-shadow: 0 0 10px #ff0000;
             animation: blink 1s infinite;
         }
 
-        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0; } }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } }
 
-        /* Overlay de Loading */
         #loader {
-            position: fixed;
-            inset: 0;
-            background: var(--bg);
-            z-index: 100;
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            position: fixed; inset: 0; background: var(--bg); z-index: 100;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
         }
-
         .spin {
-            width: 40px;
-            height: 40px;
-            border: 4px solid rgba(255,255,255,0.1);
-            border-top-color: var(--accent);
-            border-radius: 50%;
-            animation: rotate 1s linear infinite;
+            width: 50px; height: 50px; border: 5px solid rgba(255,255,255,0.1);
+            border-top-color: var(--accent); border-radius: 50%; animation: rotate 1s linear infinite;
         }
-
         @keyframes rotate { to { transform: rotate(360deg); } }
     </style>
 </head>
@@ -148,31 +87,25 @@
     <div id="app">
         <div class="header">
             <div id="recording-dot"></div>
-            <span id="event-name">CARREGANDO...</span>
-            <div id="timer-display">10s</div>
+            <span id="event-name">AUTOGRAPH CAM</span>
+            <div id="timer-display" style="display:none;">3</div>
         </div>
 
-        <video id="preview" autoplay playsinline muted></video>
+        <video id="preview" autoplay playsinline muted class="mirror-view"></video>
         <img id="moldura-overlay">
 
         <div class="controls">
-            <!-- Botão Fechar -->
             <div class="btn" onclick="window.location.href='index.html'">✕</div>
-            
-            <!-- Botão Gravar -->
             <div class="btn shutter" id="rec-btn"></div>
-            
-            <!-- Botão Inverter Câmera -->
             <div class="btn" onclick="switchCamera()">🔄</div>
         </div>
     </div>
 
-    <!-- Canvas invisível para processamento -->
     <canvas id="recorder-canvas" width="720" height="1280" style="display:none;"></canvas>
 
     <div id="loader">
         <div class="spin"></div>
-        <p>ENVIANDO VÍDEO...</p>
+        <p style="margin-top:20px; letter-spacing:2px;">PROCESSANDO VÍDEO...</p>
     </div>
 
 <script>
@@ -188,37 +121,36 @@
     let chunks = [];
     let isFrontCamera = false;
     let isRecording = false;
+    
+    // FUNÇÃO DE ESPELHAMENTO: mude para 'false' se quiser a imagem normal
+    let mirrorMode = true; 
 
-    // 1. Iniciar Câmera
     async function initCamera() {
         if (stream) stream.getTracks().forEach(t => t.stop());
         
         const constraints = {
             video: { 
                 facingMode: isFrontCamera ? "user" : "environment",
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
+                width: { ideal: 1280 }, height: { ideal: 720 }
             }
         };
 
         try {
             stream = await navigator.mediaDevices.getUserMedia(constraints);
             video.srcObject = stream;
-            // Espelha o vídeo apenas se for a câmera frontal
-            video.className = isFrontCamera ? "mirror" : "";
+            // Aplica o espelhamento visual conforme a configuração
+            video.style.transform = mirrorMode ? "scaleX(-1)" : "scaleX(1)";
         } catch (err) {
-            alert("Câmera não disponível");
+            alert("Erro ao acessar câmera.");
         }
     }
 
-    // 2. Alternar Câmera
     function switchCamera() {
         if (isRecording) return;
         isFrontCamera = !isFrontCamera;
         initCamera();
     }
 
-    // 3. Carregar Configurações
     window.onload = () => {
         const config = JSON.parse(localStorage.getItem('config_atual'));
         if (config) {
@@ -235,21 +167,21 @@
         initCamera();
     };
 
-    // 4. Lógica de Gravação
-    document.getElementById('rec-btn').onclick = async function() {
+    document.getElementById('rec-btn').onclick = function() {
         if (isRecording) return;
         isRecording = true;
-        this.style.opacity = "0.3"; // Desabilita visualmente o botão
+        this.style.opacity = "0.2";
 
         let count = 3;
         const timer = document.getElementById('timer-display');
-        timer.style.display = 'block';
+        timer.style.display = 'inline-block';
+        timer.innerText = count;
         
-        // Contagem regressiva para começar
         let countdown = setInterval(() => {
-            timer.innerText = `Começa em ${count}...`;
             count--;
-            if (count < 0) {
+            if (count > 0) {
+                timer.innerText = count;
+            } else {
                 clearInterval(countdown);
                 startMediaRecorder();
             }
@@ -267,19 +199,18 @@
             videoBitsPerSecond: 3000000 
         });
 
-        recorder.ondataavailable = e => chunks.push(e.data);
+        recorder.ondataavailable = e => { if(e.data.size > 0) chunks.push(e.data); };
         recorder.onstop = uploadVideo;
 
         recorder.start();
         document.getElementById('recording-dot').style.display = 'block';
         
-        // Loop de desenho no canvas (Garante que a moldura seja gravada no vídeo)
+        // Loop de desenho no canvas
         const draw = () => {
-            if (recorder.state === "recording") {
+            if (recorder && recorder.state === "recording") {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 
-                // Desenha o vídeo (Se for frontal, espelha no canvas também)
-                if (isFrontCamera) {
+                if (mirrorMode) {
                     ctx.save();
                     ctx.scale(-1, 1);
                     ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
@@ -288,7 +219,6 @@
                     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                 }
 
-                // Desenha a moldura por cima
                 if (molduraImg.complete) {
                     ctx.drawImage(molduraImg, 0, 0, canvas.width, canvas.height);
                 }
@@ -297,21 +227,26 @@
         };
         draw();
 
-        // Timer da gravação
+        // Cronômetro da gravação real
         let timeLeft = duration;
         const timer = document.getElementById('timer-display');
+        timer.innerText = timeLeft + "s";
+
         let clock = setInterval(() => {
             timeLeft--;
-            timer.innerText = `${timeLeft}s`;
+            if (timeLeft >= 0) {
+                timer.innerText = timeLeft + "s";
+            }
             if (timeLeft <= 0) {
                 clearInterval(clock);
-                recorder.stop();
+                if(recorder.state === "recording") recorder.stop();
             }
         }, 1000);
     }
 
     async function uploadVideo() {
         document.getElementById('loader').style.display = 'flex';
+        document.getElementById('timer-display').style.display = 'none';
         document.getElementById('recording-dot').style.display = 'none';
 
         const config = JSON.parse(localStorage.getItem('config_atual'));
@@ -326,11 +261,10 @@
         try {
             const res = await fetch(`${WORKER_URL}/upload`, { method: "POST", body: formData });
             if (res.ok) window.location.href = 'galeria.html';
-            else alert("Erro ao salvar. Tente novamente.");
+            else alert("Erro no servidor.");
         } catch (err) {
             alert("Erro de conexão.");
         }
-        document.getElementById('loader').style.display = 'none';
         isRecording = false;
         document.getElementById('rec-btn').style.opacity = "1";
     }
