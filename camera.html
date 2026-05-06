@@ -21,9 +21,9 @@
             display: flex; flex-direction: column;
         }
 
+        /* O espelhamento agora é controlado via JS para ser dinâmico */
         video { 
             width: 100%; height: 100%; object-fit: cover; background: #000;
-            transform: scaleX(-1); 
         }
         
         #moldura-overlay {
@@ -33,6 +33,23 @@
 
         .header {
             position: absolute; top: 40px; width: 100%; text-align: center; z-index: 10;
+        }
+
+        /* Botão de Inverter Espelhamento - Discreto no canto superior */
+        .btn-mirror {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            z-index: 20;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            letter-spacing: 1px;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
         }
 
         #event-name {
@@ -83,6 +100,9 @@
 <body>
 
     <div id="app">
+        <!-- Botão Inverter (Mirror) -->
+        <div class="btn-mirror" onclick="toggleMirror()">ESPELHAR: ON</div>
+
         <div class="header">
             <div id="recording-dot"></div>
             <span id="event-name">AUTOGRAPH CAM</span>
@@ -119,7 +139,18 @@
     let chunks = [];
     let isFrontCamera = false; 
     let isRecording = false;
-    let mirrorMode = true; 
+    let mirrorMode = true; // Valor inicial
+
+    function updateMirrorUI() {
+        video.style.transform = mirrorMode ? "scaleX(-1)" : "scaleX(1)";
+        document.querySelector('.btn-mirror').innerText = mirrorMode ? "ESPELHAR: ON" : "ESPELHAR: OFF";
+    }
+
+    function toggleMirror() {
+        if (isRecording) return;
+        mirrorMode = !mirrorMode;
+        updateMirrorUI();
+    }
 
     async function initCamera() {
         if (stream) stream.getTracks().forEach(t => t.stop());
@@ -134,6 +165,7 @@
         try {
             stream = await navigator.mediaDevices.getUserMedia(constraints);
             video.srcObject = stream;
+            updateMirrorUI(); // Garante que aplica o espelhamento ao iniciar
         } catch (err) {
             alert("Erro ao acessar câmera.");
         }
@@ -165,6 +197,7 @@
         if (isRecording) return;
         isRecording = true;
         this.style.opacity = "0.2";
+        document.querySelector('.btn-mirror').style.display = 'none'; // Esconde o botão ao gravar
 
         let count = 3;
         const timer = document.getElementById('timer-display');
@@ -207,9 +240,14 @@
         const draw = () => {
             if (recorder && recorder.state === "recording") {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
                 ctx.save();
-                ctx.scale(-1, 1);
-                ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+                if (mirrorMode) {
+                    ctx.scale(-1, 1);
+                    ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+                } else {
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                }
                 ctx.restore();
 
                 if (molduraImg.complete && molduraImg.naturalWidth !== 0) {
@@ -239,10 +277,8 @@
         document.getElementById('timer-display').style.display = 'none';
         document.getElementById('recording-dot').style.display = 'none';
 
-        // CORREÇÃO DO LUGAR ERRADO: Garantir que o nome do evento seja capturado corretamente
         const config = JSON.parse(localStorage.getItem('config_atual'));
         const eventNameRaw = config && config.nome ? config.nome : "Geral";
-        // Remove espaços e caracteres especiais para evitar erros de pasta no R2/Worker
         const eventFolder = eventNameRaw.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '_');
         
         const extension = recorder.mimeType.includes('mp4') ? 'mp4' : 'webm';
@@ -256,7 +292,6 @@
         try {
             const res = await fetch(`${WORKER_URL}/upload`, { method: "POST", body: formData });
             if (res.ok) {
-                // REDIRECIONAMENTO PARA GALERIA_ADMIN
                 window.location.href = 'galeria_admin.html';
             } else {
                 alert("Erro ao enviar vídeo.");
@@ -272,6 +307,7 @@
         isRecording = false;
         document.getElementById('loader').style.display = 'none';
         document.getElementById('rec-btn').style.opacity = "1";
+        document.querySelector('.btn-mirror').style.display = 'block'; // Mostra o botão novamente se falhar
     }
 </script>
 
