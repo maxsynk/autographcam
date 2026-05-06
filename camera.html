@@ -3,47 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AUTOGRAPH CAM - Ultra Stable</title>
+    <title>Câmera Photo Movie</title>
     <style>
-        :root { --bg: #0E1A25; --accent: #69829E; --white: #EFEEE9; }
-        body { margin: 0; background: var(--bg); font-family: sans-serif; overflow: hidden; color: var(--white); touch-action: none; }
-        #app { position: relative; width: 100vw; height: 100vh; display: flex; flex-direction: column; }
+        :root { --bg: #0E1A25; --accent: #69829E; }
+        body { margin: 0; background: var(--bg); font-family: sans-serif; overflow: hidden; color: #fff; }
+        #app { position: relative; width: 100vw; height: 100vh; }
         
         video { width: 100%; height: 100%; object-fit: cover; background: #000; }
-        /* A classe mirror será controlada via JS */
         .mirror { transform: scaleX(-1); }
 
-        #moldura-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; display: none; object-fit: fill; }
+        #moldura-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; object-fit: fill; }
         
         .header { position: absolute; top: 40px; width: 100%; text-align: center; z-index: 10; }
-        #event-name { display: block; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; text-shadow: 2px 2px 10px rgba(0,0,0,0.8); }
-        #timer-display { font-size: 32px; font-weight: bold; margin-top: 15px; background: rgba(0,0,0,0.5); display: inline-block; padding: 5px 20px; border-radius: 30px; min-width: 60px; }
+        #timer-display { font-size: 40px; font-weight: bold; color: #ff4444; text-shadow: 2px 2px 5px #000; display: none; }
 
-        .controls { position: absolute; bottom: 90px; width: 100%; display: flex; justify-content: space-around; align-items: center; z-index: 10; }
-        .btn { width: 65px; height: 65px; border-radius: 50%; border: 2px solid var(--accent); background: rgba(14, 26, 37, 0.8); color: white; font-size: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; backdrop-filter: blur(8px); }
-        .shutter { width: 90px; height: 90px; border: 5px solid var(--white); background: transparent; }
-
-        #recording-dot { width: 15px; height: 15px; background: #ff0000; border-radius: 50%; display: none; margin: 0 auto 10px; box-shadow: 0 0 10px #ff0000; animation: blink 1s infinite; }
-        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } }
+        .controls { position: absolute; bottom: 100px; width: 100%; display: flex; justify-content: space-around; align-items: center; z-index: 10; }
+        .btn { width: 65px; height: 65px; border-radius: 50%; border: 2px solid var(--accent); background: rgba(0,0,0,0.6); color: white; font-size: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .shutter { width: 90px; height: 90px; border: 5px solid #fff; background: transparent; }
 
         #loader { position: fixed; inset: 0; background: var(--bg); z-index: 100; display: none; flex-direction: column; align-items: center; justify-content: center; }
         .spin { width: 50px; height: 50px; border: 5px solid rgba(255,255,255,0.1); border-top-color: var(--accent); border-radius: 50%; animation: rotate 1s linear infinite; }
         @keyframes rotate { to { transform: rotate(360deg); } }
         
-        /* Botão de espelhamento rápido */
-        #mirror-toggle { position: absolute; top: 100px; right: 20px; font-size: 12px; background: rgba(0,0,0,0.5); padding: 8px; border-radius: 5px; border: 1px solid var(--accent); z-index: 20; }
+        #mirror-toggle { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 5px; z-index: 20; font-size: 12px; border: 1px solid var(--accent); }
     </style>
 </head>
 <body>
 
     <div id="app">
-        <div id="mirror-toggle" onclick="toggleMirrorManual()">ESPELHAR: LIGADO</div>
-        
-        <div class="header">
-            <div id="recording-dot"></div>
-            <span id="event-name">AUTOGRAPH CAM</span>
-            <div id="timer-display" style="display:none;">3</div>
-        </div>
+        <div id="mirror-toggle" onclick="toggleMirror()">ESPELHO: LIGADO</div>
+        <div class="header"><div id="timer-display">10s</div></div>
 
         <video id="preview" autoplay playsinline muted class="mirror"></video>
         <img id="moldura-overlay">
@@ -59,7 +48,7 @@
 
     <div id="loader">
         <div class="spin"></div>
-        <p style="margin-top:20px; letter-spacing:2px;">GRAVANDO E ENVIANDO...</p>
+        <p>PROCESSANDO...</p>
     </div>
 
 <script>
@@ -70,40 +59,30 @@
     const molduraImg = new Image();
     molduraImg.crossOrigin = "anonymous";
 
-    let stream;
-    let recorder;
-    let chunks = [];
-    let isFrontCamera = false;
-    let isRecording = false;
-    let mirrorMode = true; // Define se a imagem será espelhada ou não
+    let stream, recorder, chunks = [];
+    let isFront = false, isRec = false, mirror = true;
 
-    function toggleMirrorManual() {
-        mirrorMode = !mirrorMode;
-        video.className = mirrorMode ? "mirror" : "";
-        document.getElementById('mirror-toggle').innerText = mirrorMode ? "ESPELHAR: LIGADO" : "ESPELHAR: DESLIGADO";
+    function toggleMirror() {
+        mirror = !mirror;
+        video.className = mirror ? "mirror" : "";
+        document.getElementById('mirror-toggle').innerText = mirror ? "ESPELHO: LIGADO" : "ESPELHO: DESLIGADO";
     }
 
-    async function initCamera() {
+    async function init() {
         if (stream) stream.getTracks().forEach(t => t.stop());
-        const constraints = {
-            video: { facingMode: isFrontCamera ? "user" : "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
-        };
         try {
-            stream = await navigator.mediaDevices.getUserMedia(constraints);
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: isFront ? "user" : "environment", width: 1280, height: 720 }
+            });
             video.srcObject = stream;
-        } catch (err) { alert("Câmera não disponível."); }
+        } catch (e) { alert("Erro câmera"); }
     }
 
-    function switchCamera() {
-        if (isRecording) return;
-        isFrontCamera = !isFrontCamera;
-        initCamera();
-    }
+    function switchCamera() { isFront = !isFront; init(); }
 
     window.onload = () => {
         const config = JSON.parse(localStorage.getItem('config_atual'));
         if (config) {
-            document.getElementById('event-name').innerText = config.nome || "AUTOGRAPH CAM";
             let path = config.molduraUrl || config.moldura;
             if (path) {
                 const url = `${WORKER_URL}/stream?id=${path.includes('id=') ? path.split('id=')[1] : path}`;
@@ -112,103 +91,72 @@
                 molduraImg.onload = () => document.getElementById('moldura-overlay').style.display = 'block';
             }
         }
-        initCamera();
+        init();
     };
 
-    // BOTÃO DE DISPARO
-    document.getElementById('rec-btn').onclick = function() {
-        if (isRecording) return;
-        isRecording = true;
-        this.style.opacity = "0.2";
-
-        let count = 3;
-        const timer = document.getElementById('timer-display');
-        timer.style.display = 'inline-block';
-        timer.innerText = count;
+    document.getElementById('rec-btn').onclick = () => {
+        if (isRec) return;
+        isRec = true;
+        document.getElementById('rec-btn').style.background = "red";
         
-        // CONTAGEM REGRESSIVA 3, 2, 1
-        const countdown = setInterval(() => {
-            count--;
-            if (count > 0) {
-                timer.innerText = count;
-            } else {
-                clearInterval(countdown);
-                timer.innerText = "GRAVANDO!";
-                iniciarFluxoGravacao();
-            }
-        }, 1000);
-    };
-
-    function iniciarFluxoGravacao() {
         chunks = [];
         const config = JSON.parse(localStorage.getItem('config_atual'));
-        const tempoTotal = (config ? parseInt(config.tempo) : 10);
+        let time = config ? parseInt(config.tempo) : 10;
+
+        const s = canvas.captureStream(30);
+        recorder = new MediaRecorder(s, { mimeType: 'video/webm;codecs=vp8', videoBitsPerSecond: 3000000 });
         
-        // Prepara o Canvas
-        const captureStream = canvas.captureStream(30);
-        recorder = new MediaRecorder(captureStream, { 
-            mimeType: 'video/webm;codecs=vp8',
-            videoBitsPerSecond: 3000000 
-        });
-
-        recorder.ondataavailable = e => { if(e.data.size > 0) chunks.push(e.data); };
-        recorder.onstop = enviarParaR2;
-
-        // Inicia o motor de gravação
+        recorder.ondataavailable = e => chunks.push(e.data);
+        recorder.onstop = upload;
+        
         recorder.start();
-        document.getElementById('recording-dot').style.display = 'block';
 
-        // Loop de Desenho (Canvas)
+        const timerUI = document.getElementById('timer-display');
+        timerUI.style.display = "block";
+
+        // Loop de desenho
         const draw = () => {
-            if (recorder && recorder.state === "recording") {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                if (mirrorMode) {
-                    ctx.save();
-                    ctx.scale(-1, 1);
-                    ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+            if (recorder.state === "recording") {
+                ctx.clearRect(0, 0, 720, 1280);
+                if (mirror) {
+                    ctx.save(); ctx.scale(-1, 1);
+                    ctx.drawImage(video, -720, 0, 720, 1280);
                     ctx.restore();
                 } else {
-                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(video, 0, 0, 720, 1280);
                 }
-                if (molduraImg.complete) ctx.drawImage(molduraImg, 0, 0, canvas.width, canvas.height);
+                if (molduraImg.complete) ctx.drawImage(molduraImg, 0, 0, 720, 1280);
                 requestAnimationFrame(draw);
             }
         };
         draw();
 
-        // CONTADOR DE TEMPO DE GRAVAÇÃO (Ex: 10s até 0)
-        let timeLeft = tempoTotal;
-        const timer = document.getElementById('timer-display');
-        timer.innerText = timeLeft + "s";
-
         const clock = setInterval(() => {
-            timeLeft--;
-            if (timeLeft > 0) {
-                timer.innerText = timeLeft + "s";
-            } else {
+            time--;
+            timerUI.innerText = time + "s";
+            if (time <= 0) {
                 clearInterval(clock);
-                timer.innerText = "FIM!";
-                if(recorder.state === "recording") recorder.stop();
+                recorder.stop();
             }
         }, 1000);
-    }
+    };
 
-    async function enviarParaR2() {
+    async function upload() {
         document.getElementById('loader').style.display = 'flex';
         const config = JSON.parse(localStorage.getItem('config_atual'));
-        const eventFolder = config ? config.nome.replace(/\s+/g, '_') : "Geral";
+        const event = config ? config.nome.replace(/\s+/g, '_') : "Geral";
         
-        const blob = new Blob(chunks, { type: 'video/webm' });
         const fd = new FormData();
-        fd.append("video", blob);
-        fd.append("uuid", `autograph_${Date.now()}.webm`);
-        fd.append("evento", eventFolder);
+        fd.append("video", new Blob(chunks, { type: 'video/webm' }));
+        fd.append("uuid", `vid_${Date.now()}.webm`);
+        fd.append("evento", event);
 
         try {
             const res = await fetch(`${WORKER_URL}/upload`, { method: "POST", body: fd });
             if (res.ok) window.location.href = 'galeria.html';
-            else { alert("Erro ao salvar vídeo no servidor."); location.reload(); }
-        } catch (err) { alert("Erro de conexão."); location.reload(); }
+            else alert("Erro upload");
+        } catch (e) { alert("Erro conexão"); }
+        location.reload();
     }
 </script>
 </body>
