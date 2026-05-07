@@ -9,9 +9,44 @@
         :root { --bg: #0E1A25; --surface: #182232; --accent: #69829E; --text: #EFEEE9; }
         body { margin: 0; background: var(--bg); color: var(--text); font-family: sans-serif; text-align: center; }
         
-        .header { padding: 40px 20px; cursor: pointer; }
-        .header h1 { font-size: 32px; letter-spacing: 4px; margin: 0; }
-        #nome-evento { font-size: 14px; color: var(--accent); margin-top: 10px; text-transform: uppercase; }
+        /* Ajuste no Header para suportar subtítulo */
+        .header { padding: 30px 20px 10px 20px; cursor: pointer; }
+        .header h1 { font-size: 32px; letter-spacing: 4px; margin: 0; text-transform: uppercase; }
+        .subtitle { font-size: 11px; letter-spacing: 4px; opacity: 0.9; margin-top: 2px; text-transform: uppercase; color: var(--accent); }
+        
+        /* Container do Nome do Evento (Estilo Admin) */
+        .event-info-container {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 15px 20px;
+        }
+        .v-line { width: 2px; height: 30px; background: var(--accent); border-radius: 2px; margin-right: 10px; }
+        #nome-evento { 
+            color: var(--accent); 
+            font-size: 13px; 
+            margin: 0; 
+            letter-spacing: 1px; 
+            text-transform: uppercase; 
+            font-weight: bold;
+            text-align: left;
+        }
+
+        /* Área de Busca (Igual Admin) */
+        .search-area { 
+            padding: 15px; 
+            background: rgba(0,0,0,0.3); 
+            display: flex; 
+            justify-content: center; 
+            gap: 10px; 
+            margin-bottom: 10px;
+        }
+        .search-area input { 
+            width: 180px; 
+            padding: 12px; border-radius: 8px; 
+            border: 1px solid var(--accent); background: #000; color: var(--accent); 
+            text-align: center; font-weight: bold; outline: none; font-size: 18px;
+        }
 
         .grid { 
             display: grid; 
@@ -37,9 +72,18 @@
 </head>
 <body>
 
-    <div class="header" onclick="location.href='index.html'">
+    <div class="header" onclick="contarCliquesSair()">
         <h1>AUTOGRAPH CAM</h1>
+        <div class="subtitle">colecionando momentos</div>
+    </div>
+
+    <div class="event-info-container">
+        <div class="v-line"></div>
         <div id="nome-evento">Carregando...</div>
+    </div>
+
+    <div class="search-area">
+        <input type="number" id="input-busca" placeholder="Nº VÍDEO" oninput="timerBusca()">
     </div>
 
     <div id="grid" class="grid"></div>
@@ -55,45 +99,79 @@
 <script>
     const WORKER = "https://autographcam.maxprimefotovideo.workers.dev";
     let ultimaLista = "";
+    let listaFinaisCache = []; // Para busca rápida
+    let cliquesSaida = 0;
+    let tempoBusca;
+
+    // Função para sair após 7 cliques no título
+    function contarCliquesSair() {
+        cliquesSaida++;
+        if (cliquesSaida >= 7) {
+            window.location.href = 'index.html';
+        }
+        setTimeout(() => { cliquesSaida = 0; }, 3000); // Reseta se demorar muito entre cliques
+    }
+
+    // Função de Timer para Busca (3 segundos)
+    function timerBusca() {
+        clearTimeout(tempoBusca);
+        const valor = document.getElementById('input-busca').value;
+        if (valor) {
+            tempoBusca = setTimeout(() => {
+                executarBusca(valor);
+            }, 3000);
+        }
+    }
+
+    function executarBusca(num) {
+        const index = parseInt(num) - 1;
+        if (listaFinaisCache[index]) {
+            const file = listaFinaisCache[index];
+            const url = `${WORKER}/stream?id=${encodeURIComponent(file.path)}`;
+            abrir(url, file.path);
+            document.getElementById('input-busca').value = '';
+        }
+    }
 
     async function carregar() {
-        // 1. Pega o ID do evento da URL ou do LocalStorage
         const params = new URLSearchParams(window.location.search);
         const configLocal = JSON.parse(localStorage.getItem('config_atual') || "{}");
         const eventoID = params.get('evento') || configLocal.nome || configLocal.id;
 
         if (!eventoID) return;
         
-        // Limpa o nome para o padrão de pasta do seu Python (com underline)
         const pastaEvento = eventoID.replace(/\s+/g, '_');
-        document.getElementById('nome-evento').innerText = "Evento: " + pastaEvento;
+        // Nome do evento sem underlines no título
+        document.getElementById('nome-evento').innerText = pastaEvento.replace(/_/g, ' ');
 
         try {
-            // ROTA CORRETA: /listar-videos-evento
             const res = await fetch(`${WORKER}/listar-videos-evento?evento=${encodeURIComponent(pastaEvento)}`);
             const arquivos = await res.json();
             
-            // Só atualiza o HTML se a lista mudou (evita piscar a tela)
             if (JSON.stringify(arquivos) !== ultimaLista) {
                 ultimaLista = JSON.stringify(arquivos);
-                renderizar(arquivos);
+                // Filtra e armazena em cache para a busca funcionar por index
+                listaFinaisCache = arquivos.filter(f => f.path.includes('final_'));
+                renderizar(listaFinaisCache);
             }
         } catch (e) { console.error(e); }
     }
 
-    function renderizar(lista) {
+    function renderizar(finais) {
         const grid = document.getElementById('grid');
         grid.innerHTML = "";
         
-        // Filtra apenas os processados pelo Python (que começam com 'final_')
-        const finais = lista.filter(f => f.path.includes('final_'));
+        if (finais.length === 0) {
+            grid.innerHTML = "<p style='grid-column: 1/-1; opacity:0.5;'>Nenhum vídeo encontrado.</p>";
+            return;
+        }
 
         finais.forEach((file, i) => {
             const url = `${WORKER}/stream?id=${encodeURIComponent(file.path)}`;
             const card = document.createElement('div');
             card.className = 'card';
             card.innerHTML = `
-                <div class="num">#${finais.length - i}</div>
+                <div class="num">#${i + 1}</div>
                 <video src="${url}#t=0.5" muted playsinline></video>
             `;
             card.onclick = () => abrir(url, file.path);
@@ -115,6 +193,7 @@
 
     function fechar() {
         document.getElementById('modal').style.display = "none";
+        document.getElementById('vid-full').pause();
         document.getElementById('vid-full').src = "";
     }
 
