@@ -4,313 +4,122 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>GALERIA - AUTOGRAPH CAM</title>
-    <!-- Essencial para o download funcionar em todos os celulares -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <style>
-        :root {
-            --bg-deep: #0E1A25;
-            --bg-surface: #182232;
-            --accent: #69829E;
-            --text-main: #EFEEE9;
-            --text-dim: #A0B0C0;
+        :root { --bg: #0E1A25; --surface: #182232; --accent: #69829E; --text: #EFEEE9; }
+        body { margin: 0; background: var(--bg); color: var(--text); font-family: sans-serif; text-align: center; }
+        
+        .header { padding: 40px 20px; cursor: pointer; }
+        .header h1 { font-size: 32px; letter-spacing: 4px; margin: 0; }
+        #nome-evento { font-size: 14px; color: var(--accent); margin-top: 10px; text-transform: uppercase; }
+
+        .grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); 
+            gap: 15px; padding: 20px; max-width: 1000px; margin: 0 auto; 
         }
-
-        body {
-            margin: 0;
-            background: var(--bg-deep);
-            color: var(--text-main);
-            font-family: 'Segoe UI', Roboto, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
+        
+        .card { 
+            background: var(--surface); border-radius: 12px; overflow: hidden; 
+            aspect-ratio: 9/16; position: relative; border: 1px solid rgba(105, 130, 158, 0.2); 
         }
+        
+        .card video { width: 100%; height: 100%; object-fit: cover; }
+        .num { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.6); padding: 2px 8px; border-radius: 4px; font-size: 12px; }
 
-        /* HEADER E ATALHO DE SAÍDA */
-        .header {
-            margin-top: 1.2cm;
-            text-align: center;
-            margin-bottom: 25px;
-            cursor: pointer;
-            user-select: none;
-        }
-
-        .header h1 {
-            color: var(--text-main);
-            font-size: 42px;
-            font-weight: 900;
-            letter-spacing: 3px;
-            margin: 0;
-            text-transform: uppercase;
-        }
-
-        .header p {
-            color: var(--accent);
-            font-size: 18px;
-            margin: -5px 0 0 0;
-            letter-spacing: 4px;
-            font-weight: 300;
-            text-transform: lowercase;
-            opacity: 0.9;
-        }
-
-        #nome-evento-banner {
-            font-size: 12px;
-            color: var(--accent);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-top: 15px;
-        }
-
-        /* BUSCA POR NÚMERO */
-        .search-container {
-            width: 90%;
-            max-width: 400px;
-            margin-bottom: 25px;
-        }
-
-        .search-container input {
-            width: 100%;
-            padding: 15px;
-            background: var(--bg-surface);
-            border: 1px solid var(--accent);
-            border-radius: 30px;
-            color: white;
-            font-size: 16px;
-            outline: none;
-            text-align: center;
-            box-sizing: border-box;
-        }
-
-        /* GRADE DE VÍDEOS */
-        .grid-videos {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-            gap: 15px;
-            width: 94%;
-            max-width: 1100px;
-            padding-bottom: 60px;
-        }
-
-        .video-card {
-            background: var(--bg-surface);
-            border-radius: 15px;
-            overflow: hidden;
-            aspect-ratio: 9/16;
-            position: relative;
-            border: 1px solid rgba(105, 130, 158, 0.2);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-        }
-
-        .video-card video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            cursor: pointer;
-        }
-
-        /* NÚMERO DO VÍDEO (#) */
-        .video-number {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 3px 10px;
-            border-radius: 5px;
-            font-size: 12px;
-            font-weight: bold;
-            z-index: 5;
-            border: 1px solid var(--accent);
-        }
-
-        /* BOTÃO DOWNLOAD NA GRADE */
-        .btn-download-grid {
-            position: absolute;
-            bottom: 10px;
-            right: 10px;
-            background: var(--accent);
-            color: white;
-            width: 35px;
-            height: 35px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-decoration: none;
-            font-weight: bold;
-            z-index: 5;
-            font-size: 18px;
-        }
-
-        /* MODAL DE ZOOM */
-        #modal-zoom {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.98);
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 10000;
-            backdrop-filter: blur(10px);
-        }
-
-        #media-full {
-            width: 85%;
-            max-height: 70vh;
-            border-radius: 15px;
-            border: 2px solid var(--accent);
-        }
-
-        .modal-controls {
-            margin-top: 25px;
-            display: flex;
-            gap: 15px;
-        }
-
-        .btn-action {
-            padding: 15px 35px;
-            border-radius: 30px;
-            border: none;
-            font-weight: bold;
-            cursor: pointer;
-            text-transform: uppercase;
-        }
-
-        .btn-close { background: #333; color: white; }
-        .btn-download-full { background: var(--accent); color: white; }
-
-        .empty-msg { grid-column: 1/-1; text-align: center; padding: 50px; color: var(--text-dim); }
+        /* MODAL */
+        #modal { position: fixed; inset: 0; background: #000; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
+        #vid-full { width: 90%; max-height: 70vh; border-radius: 10px; }
+        .btns { margin-top: 20px; display: flex; gap: 10px; }
+        .btn { padding: 15px 25px; border-radius: 25px; border: none; font-weight: bold; cursor: pointer; }
+        .btn-dl { background: var(--accent); color: white; }
     </style>
 </head>
-<body onload="sincronizarInterface()">
+<body>
 
-    <div class="header" id="logo-exit">
+    <div class="header" onclick="location.href='index.html'">
         <h1>AUTOGRAPH CAM</h1>
-        <p>colecionando momentos</p>
-        <div id="nome-evento-banner">CONECTANDO...</div>
+        <div id="nome-evento">Carregando...</div>
     </div>
 
-    <div class="search-container">
-        <input type="number" id="input-busca" placeholder="Digite o número do vídeo..." oninput="iniciarBuscaInteligente()">
-    </div>
+    <div id="grid" class="grid"></div>
 
-    <div id="grade-videos" class="grid-videos">
-        <!-- Vídeos via JS -->
-    </div>
-
-    <!-- MODAL ZOOM -->
-    <div id="modal-zoom">
-        <video id="media-full" controls playsinline crossorigin="anonymous"></video>
-        <div class="modal-controls">
-            <button class="btn-action btn-close" onclick="fecharZoom()">VOLTAR</button>
-            <button id="btn-download-force" class="btn-action btn-download-full">BAIXAR VÍDEO</button>
+    <div id="modal">
+        <video id="vid-full" controls playsinline></video>
+        <div class="btns">
+            <button class="btn" onclick="fechar()">VOLTAR</button>
+            <button id="btn-save" class="btn btn-dl">BAIXAR</button>
         </div>
     </div>
 
 <script>
-    const WORKER_URL = "https://autographcam.maxprimefotovideo.workers.dev";
-    let listaArquivosAtuais = [];
-    let cliquesSaida = 0;
+    const WORKER = "https://autographcam.maxprimefotovideo.workers.dev";
+    let ultimaLista = "";
 
-    document.getElementById('logo-exit').onclick = () => {
-        if (++cliquesSaida >= 7) window.location.href = 'index.html';
-        setTimeout(() => { cliquesSaida = 0; }, 3000);
-    };
+    async function carregar() {
+        // 1. Pega o ID do evento da URL ou do LocalStorage
+        const params = new URLSearchParams(window.location.search);
+        const configLocal = JSON.parse(localStorage.getItem('config_atual') || "{}");
+        const eventoID = params.get('evento') || configLocal.nome || configLocal.id;
 
-    async function sincronizarInterface() {
-        const urlParams = new URLSearchParams(window.location.search);
-        // Pega o evento da URL ou do LocalStorage
-        let eventoID = urlParams.get('evento');
+        if (!eventoID) return;
         
-        if (!eventoID) {
-            const config = JSON.parse(localStorage.getItem('config_atual'));
-            eventoID = config ? (config.id || config.nome) : null;
-        }
-
-        if (!eventoID) {
-            document.getElementById('nome-evento-banner').innerText = "ERRO: EVENTO NÃO DEFINIDO";
-            return;
-        }
-        
-        document.getElementById('nome-evento-banner').innerText = "Evento: " + eventoID.toUpperCase().replace(/_/g, ' ');
+        // Limpa o nome para o padrão de pasta do seu Python (com underline)
+        const pastaEvento = eventoID.replace(/\s+/g, '_');
+        document.getElementById('nome-evento').innerText = "Evento: " + pastaEvento;
 
         try {
-            console.log("Buscando vídeos para:", eventoID);
-            const res = await fetch(`${WORKER_URL}/listar-videos-evento?evento=${encodeURIComponent(eventoID)}&t=${Date.now()}`);
+            // ROTA CORRETA: /listar-videos-evento
+            const res = await fetch(`${WORKER}/listar-videos-evento?evento=${encodeURIComponent(pastaEvento)}`);
+            const arquivos = await res.json();
             
-            if (!res.ok) throw new Error(`Erro Worker: ${res.status}`);
-            
-            const dados = await res.json();
-            console.log("Arquivos recebidos:", dados);
-
-            // Só renderiza se a lista mudar
-            if (JSON.stringify(dados) !== JSON.stringify(listaArquivosAtuais)) {
-                listaArquivosAtuais = dados;
-                renderizar(dados);
+            // Só atualiza o HTML se a lista mudou (evita piscar a tela)
+            if (JSON.stringify(arquivos) !== ultimaLista) {
+                ultimaLista = JSON.stringify(arquivos);
+                renderizar(arquivos);
             }
-        } catch (e) {
-            console.error("Falha na sincronização:", e);
-            document.getElementById('grade-videos').innerHTML = `<div class="empty-msg">Erro de conexão com o servidor.</div>`;
-        }
+        } catch (e) { console.error(e); }
     }
 
-    function renderizar(arquivos) {
-        const container = document.getElementById('grade-videos');
-        container.innerHTML = '';
+    function renderizar(lista) {
+        const grid = document.getElementById('grid');
+        grid.innerHTML = "";
+        
+        // Filtra apenas os processados pelo Python (que começam com 'final_')
+        const finais = lista.filter(f => f.path.includes('final_'));
 
-        if (!arquivos || arquivos.length === 0) {
-            container.innerHTML = `<div class="empty-msg">Nenhum vídeo disponível.</div>`;
-            return;
-        }
-
-        arquivos.forEach((file, index) => {
-            // O seu Worker retorna "path", vamos usar ele
-            const filePath = file.path;
-            const streamUrl = `${WORKER_URL}/stream?id=${encodeURIComponent(filePath)}`;
-            
-            // O número do vídeo é baseado na contagem total (inversa)
-            const numExibicao = arquivos.length - index;
-
+        finais.forEach((file, i) => {
+            const url = `${WORKER}/stream?id=${encodeURIComponent(file.path)}`;
             const card = document.createElement('div');
-            card.className = 'video-card';
+            card.className = 'card';
             card.innerHTML = `
-                <div class="video-number">#${numExibicao}</div>
-                <video src="${streamUrl}#t=0.1" preload="metadata" muted playsinline onclick="abrirZoom('${streamUrl}', '${filePath}')"></video>
-                <a href="javascript:void(0)" onclick="forçarDownload('${streamUrl}', '${filePath}')" class="btn-download-grid">↓</a>
+                <div class="num">#${finais.length - i}</div>
+                <video src="${url}#t=0.5" muted playsinline></video>
             `;
-            container.appendChild(card);
+            card.onclick = () => abrir(url, file.path);
+            grid.appendChild(card);
         });
     }
 
-    function abrirZoom(url, path) {
-        const modal = document.getElementById('modal-zoom');
-        const video = document.getElementById('media-full');
-        modal.style.display = 'flex';
-        video.src = url;
-        video.play();
-        document.getElementById('btn-download-force').onclick = () => forçarDownload(url, path);
+    function abrir(url, path) {
+        const m = document.getElementById('modal');
+        const v = document.getElementById('vid-full');
+        m.style.display = "flex";
+        v.src = url;
+        v.play();
+
+        document.getElementById('btn-save').onclick = () => {
+            fetch(url).then(r => r.blob()).then(b => saveAs(b, path.split('/').pop()));
+        };
     }
 
-    function fecharZoom() {
-        document.getElementById('modal-zoom').style.display = 'none';
-        const v = document.getElementById('media-full');
-        v.pause();
-        v.src = "";
+    function fechar() {
+        document.getElementById('modal').style.display = "none";
+        document.getElementById('vid-full').src = "";
     }
 
-    function forçarDownload(url, path) {
-        const fileName = path.split('/').pop();
-        fetch(url)
-            .then(res => res.blob())
-            .then(blob => saveAs(blob, fileName))
-            .catch(() => alert("Erro ao baixar."));
-    }
-
-    // Inicialização
-    sincronizarInterface();
-    setInterval(sincronizarInterface, 10000);
+    setInterval(carregar, 5000);
+    carregar();
 </script>
 </body>
 </html>
