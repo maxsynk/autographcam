@@ -164,18 +164,20 @@
     </div>
 
 <script>
-    // URL CORRIGIDA
     const WORKER_URL = "https://autographcam.maxprimefotovideo.workers.dev";
     let listaFinais = [];
-    let idPastaFixo = ""; 
+    let nomePastaEvento = ""; 
 
     window.onload = () => {
         const config = JSON.parse(localStorage.getItem('config_atual'));
         if(!config) { window.location.href = "index.html"; return; }
-        document.getElementById('nome-evento-titulo').innerText = (config.nome || "").replace(/_/g, ' ');
-        idPastaFixo = config.id_fixo || config.nome; 
+        
+        // Padroniza o nome da pasta igual ao Python e ao Worker
+        nomePastaEvento = (config.nome || "").replace(/\s+/g, '_');
+        document.getElementById('nome-evento-titulo').innerText = nomePastaEvento.replace(/_/g, ' ');
+        
         carregarArquivos();
-        setInterval(carregarArquivos, 5000); // Aumentado para 5s para economizar request
+        setInterval(carregarArquivos, 5000);
     };
 
     function toggleMenu() {
@@ -185,31 +187,39 @@
 
     async function carregarArquivos() {
         try {
-            const res = await fetch(`${WORKER_URL}/listar-galeria?evento=${encodeURIComponent(idPastaFixo)}`);
+            // Rota corrigida para listar-videos-evento (ou listar-galeria, se o worker suportar as duas)
+            const res = await fetch(`${WORKER_URL}/listar-videos-evento?evento=${encodeURIComponent(nomePastaEvento)}`);
             const dados = await res.json();
-            // Filtra apenas os vídeos processados (finais)
-            const novosFinais = dados.filter(f => f.path.toLowerCase().includes('autograph_') || f.path.toLowerCase().includes('final_'));
             
+            // Filtra vídeos que já foram processados (contêm 'final_' no nome)
+            const novosFinais = dados.filter(f => f.path.includes('final_'));
+            
+            // Só renderiza se a lista for diferente da atual
             if (JSON.stringify(novosFinais) !== JSON.stringify(listaFinais)) {
                 listaFinais = novosFinais;
                 renderizarGaleria();
             }
-        } catch (e) { console.error("Erro ao carregar arquivos."); }
+        } catch (e) { console.error("Erro ao carregar arquivos admin."); }
     }
 
     function renderizarGaleria() {
         const container = document.getElementById('gallery-container');
         container.innerHTML = "";
+        
         if (listaFinais.length === 0) {
             container.innerHTML = "<p style='grid-column: 1/-1; opacity:0.5; margin-top:50px;'>Nenhum vídeo processado encontrado.</p>";
             return;
         }
+
+        // Exibimos a lista na ordem correta (podemos inverter se quiser os novos primeiro)
         listaFinais.forEach((file, index) => {
             const url = `${WORKER_URL}/stream?id=${encodeURIComponent(file.path)}`;
+            const numExibicao = index + 1;
+
             const card = document.createElement('div');
             card.className = 'video-card';
             card.innerHTML = `
-                <div class="video-id-badge">#${index + 1}</div>
+                <div class="video-id-badge">#${numExibicao}</div>
                 <button class="btn-del-mini" onclick="event.stopPropagation(); excluirArquivo('${file.path}')">X</button>
                 <video src="${url}#t=0.5" muted playsinline></video>
             `;
@@ -243,27 +253,42 @@
     async function excluirArquivo(path) {
         if(!confirm("Excluir vídeo permanentemente?")) return;
         try {
-            await fetch(`${WORKER_URL}/deletar`, { 
+            // Rota de deleção que o seu Worker possui para o R2
+            await fetch(`${WORKER_URL}/deletar-arquivo`, { 
                 method: 'POST', 
-                body: JSON.stringify({ id: path, evento: idPastaFixo }) 
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ path: path }) 
             });
             carregarArquivos();
         } catch (e) { alert("Erro ao excluir."); }
     }
 
     async function excluirTudo() {
-        if(prompt("Digite 'apagar' para confirmar a exclusão de TODA a galeria:") !== 'apagar') return;
+        if(prompt("Digite 'apagar' para confirmar a exclusão de TODA a galeria FINAL:") !== 'apagar') return;
+        
+        const btn = document.querySelector('.btn-danger');
+        btn.innerText = "⏳ APAGANDO...";
+        
         for(let f of listaFinais) {
-            await fetch(`${WORKER_URL}/deletar`, { method: 'POST', body: JSON.stringify({ id: f.path, evento: idPastaFixo }) });
+            await fetch(`${WORKER_URL}/deletar-arquivo`, { 
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ path: f.path }) 
+            });
         }
+        
         carregarArquivos();
         toggleMenu();
+        btn.innerText = "⚠️ APAGAR GALERIA";
     }
 
     async function baixarTudoZip() {
+        if (listaFinais.length === 0) return alert("Nada para baixar.");
+        
         const btn = document.querySelector('.btn-zip');
         const originalText = btn.innerText;
         btn.innerText = "⏳ PROCESSANDO...";
+        
         try {
             const zip = new JSZip();
             for(let i = 0; i < listaFinais.length; i++) {
@@ -272,9 +297,10 @@
                 zip.file(`video_${i+1}.mp4`, blob);
             }
             const content = await zip.generateAsync({type:"blob"});
-            saveAs(content, `Galeria_${idPastaFixo}.zip`);
+            saveAs(content, `Galeria_${nomePastaEvento}.zip`);
         } catch (e) {
             alert("Erro ao gerar ZIP.");
+            console.error(e);
         } finally {
             btn.innerText = originalText;
             toggleMenu();
@@ -282,14 +308,18 @@
     }
 
     async function forcarDownload(url, filename) {
-        const res = await fetch(url);
-        saveAs(await res.blob(), filename);
+        try {
+            const res = await fetch(url);
+            const blob = await res.blob();
+            saveAs(blob, filename);
+        } catch(e) { alert("Erro no download."); }
     }
 
     function fecharZoom() {
         document.getElementById('modal-zoom').style.display = 'none';
-        document.getElementById('media-full').pause();
-        document.getElementById('media-full').src = "";
+        const video = document.getElementById('media-full');
+        video.pause();
+        video.src = "";
     }
 </script>
 </body>
