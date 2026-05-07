@@ -213,52 +213,46 @@
     const WORKER_URL = "https://autographcam.maxprimefotovideo.workers.dev";
     let listaArquivosAtuais = [];
     let cliquesSaida = 0;
-    let timerBusca;
 
-    // Atalho secreto: 7 cliques volta para index
     document.getElementById('logo-exit').onclick = () => {
         if (++cliquesSaida >= 7) window.location.href = 'index.html';
         setTimeout(() => { cliquesSaida = 0; }, 3000);
     };
 
-    // Busca inteligente: espera 3s e abre o zoom
-    function iniciarBuscaInteligente() {
-        clearTimeout(timerBusca);
-        const termo = document.getElementById('input-busca').value.trim();
-        
-        if (termo.length > 0) {
-            timerBusca = setTimeout(() => {
-                // Como a lista é "mais recentes primeiro", calculamos o número real
-                const total = listaArquivosAtuais.length;
-                const index = total - parseInt(termo);
-                
-                if (listaArquivosAtuais[index]) {
-                    const file = listaArquivosAtuais[index];
-                    const streamUrl = `${WORKER_URL}/stream?id=${encodeURIComponent(file.path)}`;
-                    abrirZoom(streamUrl, file.path);
-                }
-            }, 3000);
-        }
-    }
-
     async function sincronizarInterface() {
         const urlParams = new URLSearchParams(window.location.search);
-        let eventoID = urlParams.get('evento') || (JSON.parse(localStorage.getItem('config_atual')) || {nome: "Geral"}).nome;
+        // Pega o evento da URL ou do LocalStorage
+        let eventoID = urlParams.get('evento');
+        
+        if (!eventoID) {
+            const config = JSON.parse(localStorage.getItem('config_atual'));
+            eventoID = config ? (config.id || config.nome) : null;
+        }
+
+        if (!eventoID) {
+            document.getElementById('nome-evento-banner').innerText = "ERRO: EVENTO NÃO DEFINIDO";
+            return;
+        }
         
         document.getElementById('nome-evento-banner').innerText = "Evento: " + eventoID.toUpperCase().replace(/_/g, ' ');
 
         try {
-            // Rota exata do seu Worker
+            console.log("Buscando vídeos para:", eventoID);
             const res = await fetch(`${WORKER_URL}/listar-videos-evento?evento=${encodeURIComponent(eventoID)}&t=${Date.now()}`);
+            
+            if (!res.ok) throw new Error(`Erro Worker: ${res.status}`);
+            
             const dados = await res.json();
+            console.log("Arquivos recebidos:", dados);
 
-            // Evita ficar renderizando se nada mudou
+            // Só renderiza se a lista mudar
             if (JSON.stringify(dados) !== JSON.stringify(listaArquivosAtuais)) {
                 listaArquivosAtuais = dados;
                 renderizar(dados);
             }
         } catch (e) {
-            console.error("Erro ao listar:", e);
+            console.error("Falha na sincronização:", e);
+            document.getElementById('grade-videos').innerHTML = `<div class="empty-msg">Erro de conexão com o servidor.</div>`;
         }
     }
 
@@ -267,21 +261,24 @@
         container.innerHTML = '';
 
         if (!arquivos || arquivos.length === 0) {
-            container.innerHTML = `<div class="empty-msg">Nenhum vídeo processado ainda...</div>`;
+            container.innerHTML = `<div class="empty-msg">Nenhum vídeo disponível.</div>`;
             return;
         }
 
         arquivos.forEach((file, index) => {
-            // Rota de Stream do seu Worker
-            const streamUrl = `${WORKER_URL}/stream?id=${encodeURIComponent(file.path)}`;
+            // O seu Worker retorna "path", vamos usar ele
+            const filePath = file.path;
+            const streamUrl = `${WORKER_URL}/stream?id=${encodeURIComponent(filePath)}`;
+            
+            // O número do vídeo é baseado na contagem total (inversa)
             const numExibicao = arquivos.length - index;
 
             const card = document.createElement('div');
             card.className = 'video-card';
             card.innerHTML = `
                 <div class="video-number">#${numExibicao}</div>
-                <video src="${streamUrl}#t=0.5" preload="metadata" muted playsinline onclick="abrirZoom('${streamUrl}', '${file.path}')"></video>
-                <a href="javascript:void(0)" onclick="forçarDownload('${streamUrl}', '${file.path}')" class="btn-download-grid">↓</a>
+                <video src="${streamUrl}#t=0.1" preload="metadata" muted playsinline onclick="abrirZoom('${streamUrl}', '${filePath}')"></video>
+                <a href="javascript:void(0)" onclick="forçarDownload('${streamUrl}', '${filePath}')" class="btn-download-grid">↓</a>
             `;
             container.appendChild(card);
         });
@@ -293,32 +290,27 @@
         modal.style.display = 'flex';
         video.src = url;
         video.play();
-
         document.getElementById('btn-download-force').onclick = () => forçarDownload(url, path);
     }
 
     function fecharZoom() {
-        const modal = document.getElementById('modal-zoom');
-        const video = document.getElementById('media-full');
-        video.pause();
-        video.src = "";
-        modal.style.display = 'none';
-        document.getElementById('input-busca').value = '';
+        document.getElementById('modal-zoom').style.display = 'none';
+        const v = document.getElementById('media-full');
+        v.pause();
+        v.src = "";
     }
 
-    // Função de download robusta usando FileSaver
     function forçarDownload(url, path) {
         const fileName = path.split('/').pop();
         fetch(url)
             .then(res => res.blob())
-            .then(blob => {
-                saveAs(blob, fileName);
-            })
-            .catch(err => alert("Erro ao baixar vídeo."));
+            .then(blob => saveAs(blob, fileName))
+            .catch(() => alert("Erro ao baixar."));
     }
 
-    // Monitora novos vídeos a cada 8 segundos
-    setInterval(sincronizarInterface, 8000);
+    // Inicialização
+    sincronizarInterface();
+    setInterval(sincronizarInterface, 10000);
 </script>
 </body>
 </html>
