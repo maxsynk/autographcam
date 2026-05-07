@@ -22,15 +22,14 @@
             flex-direction: column;
             align-items: center;
             min-height: 100vh;
-            overflow-x: hidden;
         }
 
-        /* HEADER ESTILO CENTRAL */
+        /* HEADER */
         .header {
             margin-top: 1.2cm;
             text-align: center;
-            margin-bottom: 30px;
-            cursor: pointer; /* Indica que é clicável para o atalho */
+            margin-bottom: 25px;
+            cursor: pointer;
             user-select: none;
         }
 
@@ -65,12 +64,12 @@
         .search-container {
             width: 90%;
             max-width: 400px;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
         }
 
         .search-container input {
             width: 100%;
-            padding: 15px 25px;
+            padding: 15px;
             background: var(--bg-surface);
             border: 1px solid var(--accent);
             border-radius: 30px;
@@ -84,77 +83,106 @@
         /* GRID */
         .grid-videos {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 12px;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 15px;
             width: 94%;
-            max-width: 1000px;
-            padding-bottom: 40px;
+            max-width: 1100px;
+            padding-bottom: 50px;
         }
 
         .video-card {
             background: var(--bg-surface);
-            border-radius: 12px;
+            border-radius: 15px;
             overflow: hidden;
             aspect-ratio: 9/16;
             position: relative;
-            border: 1px solid rgba(105, 130, 158, 0.1);
-            cursor: pointer;
+            border: 1px solid rgba(105, 130, 158, 0.2);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
 
         .video-card video {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            pointer-events: none;
+            cursor: pointer;
+        }
+
+        /* IDENTIFICAÇÃO # NÚMERO */
+        .video-number {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: var(--text-main);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            border: 1px solid var(--accent);
+            z-index: 2;
+        }
+
+        /* BOTÃO DOWNLOAD NA GRADE */
+        .btn-download-grid {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: var(--accent);
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            font-size: 18px;
+            z-index: 2;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
         }
 
         /* MODAL ZOOM */
         #modal-zoom {
             position: fixed;
             inset: 0;
-            background: rgba(14, 26, 37, 0.98);
+            background: rgba(10, 20, 30, 0.98);
             display: none;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            z-index: 9999;
-            backdrop-filter: blur(10px);
+            z-index: 10000;
+            backdrop-filter: blur(12px);
         }
 
         #video-expandido {
-            width: 90%;
-            max-height: 75vh;
+            width: 85%;
+            max-height: 70vh;
             border-radius: 15px;
             border: 1px solid var(--accent);
+            box-shadow: 0 0 40px rgba(0,0,0,0.8);
         }
 
         .btn-fechar {
-            margin-top: 20px;
+            margin-top: 25px;
             background: transparent;
             color: var(--text-dim);
             border: 1px solid var(--text-dim);
-            padding: 10px 30px;
-            border-radius: 20px;
+            padding: 10px 40px;
+            border-radius: 30px;
             cursor: pointer;
+            font-weight: bold;
         }
 
         .btn-download-zoom {
             margin-top: 15px;
             background: var(--accent);
             color: white;
-            padding: 15px 40px;
+            padding: 15px 50px;
             border-radius: 30px;
             text-decoration: none;
-            font-weight: bold;
+            font-weight: 800;
             text-transform: uppercase;
-        }
-
-        .empty-msg {
-            grid-column: 1 / -1;
-            text-align: center;
-            padding: 50px;
-            color: var(--text-dim);
-            opacity: 0.6;
+            letter-spacing: 1px;
         }
     </style>
 </head>
@@ -167,16 +195,15 @@
     </div>
 
     <div class="search-container">
-        <input type="text" id="input-busca" placeholder="Digite o número do seu vídeo..." oninput="iniciarBuscaInteligente()">
+        <input type="text" id="input-busca" placeholder="Digite o número do vídeo..." oninput="iniciarBuscaInteligente()">
     </div>
 
     <div id="grade-videos" class="grid-videos"></div>
 
-    <!-- MODAL DE ZOOM -->
     <div id="modal-zoom">
         <video id="video-expandido" controls playsinline></video>
-        <a id="link-download" href="#" download class="btn-download-zoom">BAIXAR MEU VÍDEO</a>
-        <button class="btn-fechar" onclick="fecharZoom()">FECHAR</button>
+        <a id="link-download" href="#" download class="btn-download-zoom">BAIXAR VÍDEO</a>
+        <button class="btn-fechar" onclick="fecharZoom()">VOLTAR</button>
     </div>
 
 <script>
@@ -185,23 +212,21 @@
     let cliquesVoltar = 0;
     let timerBusca;
 
-    // 1. Atalho Secreto (7 cliques no título)
     function contarCliques() {
         cliquesVoltar++;
-        if (cliquesVoltar >= 7) {
-            window.location.href = 'index.html';
-        }
-        setTimeout(() => { cliquesVoltar = 0; }, 3000); // Reseta se demorar a clicar
+        if (cliquesVoltar >= 7) window.location.href = 'index.html';
+        setTimeout(() => { cliquesVoltar = 0; }, 3000);
     }
 
-    // 2. Busca Inteligente (Aguarda 3s e abre zoom)
     function iniciarBuscaInteligente() {
         clearTimeout(timerBusca);
         const termo = document.getElementById('input-busca').value.trim();
-        
         if(termo.length > 0) {
             timerBusca = setTimeout(() => {
-                const encontrado = listaArquivosAtuais.find(arq => arq.key.toLowerCase().includes(termo.toLowerCase()));
+                const encontrado = listaArquivosAtuais.find((arq, index) => {
+                    const numExibicao = listaArquivosAtuais.length - index;
+                    return numExibicao.toString() === termo || arq.key.includes(termo);
+                });
                 if(encontrado) {
                     const videoUrl = `${WORKER_URL}/ver-video?file=${encodeURIComponent(encontrado.key)}`;
                     abrirZoom(videoUrl);
@@ -220,22 +245,21 @@
         }
 
         document.getElementById('nome-evento-banner').innerText = "Evento: " + eventoID.toUpperCase().replace(/_/g, ' ');
-
         const pastaR2 = eventoID.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '_');
 
         try {
             const res = await fetch(`${WORKER_URL}/listar-videos-evento?evento=${encodeURIComponent(pastaR2)}&t=${Date.now()}`);
-            const novosArquivos = await res.json();
+            const dados = await res.json();
+            
+            // Ordem cronológica inversa (mais novos primeiro)
+            dados.reverse();
 
-            // Inverter para mostrar os mais recentes primeiro
-            novosArquivos.reverse();
-
-            if (JSON.stringify(novosArquivos) !== JSON.stringify(listaArquivosAtuais)) {
-                listaArquivosAtuais = novosArquivos;
-                renderizar(novosArquivos);
+            if (JSON.stringify(dados) !== JSON.stringify(listaArquivosAtuais)) {
+                listaArquivosAtuais = dados;
+                renderizar(dados);
             }
         } catch (e) {
-            console.error("Erro ao buscar vídeos:", e);
+            console.error("Erro:", e);
         }
     }
 
@@ -244,19 +268,21 @@
         container.innerHTML = '';
 
         if (!arquivos || arquivos.length === 0) {
-            container.innerHTML = `<div class="empty-msg">Aguardando os primeiros vídeos...</div>`;
+            container.innerHTML = `<div class="empty-msg">Nenhum vídeo disponível ainda.</div>`;
             return;
         }
 
-        arquivos.forEach(file => {
+        arquivos.forEach((file, index) => {
             const videoUrl = `${WORKER_URL}/ver-video?file=${encodeURIComponent(file.key)}`;
+            const numExibicao = arquivos.length - index; // Gera o número #1, #2...
+            
             const card = document.createElement('div');
             card.className = 'video-card';
-            
-            // O truque do #t=0.1 garante que o vídeo mostre uma imagem inicial e não fique preto
-            card.innerHTML = `<video src="${videoUrl}#t=0.1" preload="metadata" muted playsinline></video>`;
-
-            card.onclick = () => abrirZoom(videoUrl);
+            card.innerHTML = `
+                <div class="video-number">#${numExibicao}</div>
+                <video src="${videoUrl}#t=0.1" preload="metadata" muted playsinline onclick="abrirZoom('${videoUrl}')"></video>
+                <a href="${videoUrl}" download="video_${numExibicao}.mp4" class="btn-download-grid">↓</a>
+            `;
             container.appendChild(card);
         });
     }
@@ -265,11 +291,10 @@
         const modal = document.getElementById('modal-zoom');
         const vid = document.getElementById('video-expandido');
         const link = document.getElementById('link-download');
-        
         vid.src = url;
         link.href = url;
         modal.style.display = 'flex';
-        vid.play();
+        vid.play().catch(e => console.log("Auto-play bloqueado"));
     }
 
     function fecharZoom() {
@@ -278,10 +303,9 @@
         vid.pause();
         vid.src = "";
         modal.style.display = 'none';
-        document.getElementById('input-busca').value = ''; // Limpa busca ao fechar
+        document.getElementById('input-busca').value = '';
     }
 
-    // Atualização automática
     setInterval(sincronizarInterface, 10000);
 </script>
 </body>
