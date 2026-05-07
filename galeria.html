@@ -22,111 +22,124 @@
             flex-direction: column;
             align-items: center;
             min-height: 100vh;
+            overflow-x: hidden;
         }
 
-        /* HEADER ORIGINAL RECOMPILADO */
+        /* HEADER ESTILO CENTRAL */
         .header {
-            width: 100%;
-            padding: 40px 0 20px 0;
+            margin-top: 1.2cm;
             text-align: center;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.5), transparent);
+            margin-bottom: 30px;
+            cursor: pointer; /* Indica que é clicável para o atalho */
+            user-select: none;
         }
 
-        #nome-evento-titulo {
+        .header h1 {
             color: var(--text-main);
-            font-size: 32px;
+            font-size: 42px;
             font-weight: 900;
             letter-spacing: 3px;
             margin: 0;
             text-transform: uppercase;
         }
 
+        .header p {
+            color: var(--accent);
+            font-size: 18px;
+            margin: -5px 0 0 0;
+            letter-spacing: 4px;
+            font-weight: 300;
+            text-transform: lowercase;
+            opacity: 0.9;
+        }
+
+        #nome-evento-banner {
+            font-size: 12px;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-top: 15px;
+        }
+
+        /* BUSCA */
         .search-container {
             width: 90%;
             max-width: 400px;
-            margin: 20px auto;
-            position: relative;
+            margin-bottom: 20px;
         }
 
         .search-container input {
             width: 100%;
-            padding: 15px 20px;
+            padding: 15px 25px;
             background: var(--bg-surface);
             border: 1px solid var(--accent);
             border-radius: 30px;
             color: white;
-            box-sizing: border-box;
-            outline: none;
             font-size: 16px;
+            outline: none;
+            text-align: center;
+            box-sizing: border-box;
         }
 
-        /* GRID E CARDS */
+        /* GRID */
         .grid-videos {
             display: grid;
-            grid-template-columns: repeat(2, 1fr); /* 2 colunas no mobile */
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
             gap: 12px;
             width: 94%;
             max-width: 1000px;
-            padding-bottom: 50px;
-        }
-
-        @media (min-width: 768px) {
-            .grid-videos { grid-template-columns: repeat(4, 1fr); }
+            padding-bottom: 40px;
         }
 
         .video-card {
             background: var(--bg-surface);
-            border-radius: 15px;
+            border-radius: 12px;
             overflow: hidden;
             aspect-ratio: 9/16;
             position: relative;
+            border: 1px solid rgba(105, 130, 158, 0.1);
             cursor: pointer;
-            border: 1px solid rgba(105, 130, 158, 0.2);
-            transition: transform 0.3s;
         }
 
         .video-card video {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            pointer-events: none; /* Para o clique cair no card */
+            pointer-events: none;
         }
 
-        /* MODAL DE ZOOM */
+        /* MODAL ZOOM */
         #modal-zoom {
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.95);
+            background: rgba(14, 26, 37, 0.98);
             display: none;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            z-index: 10000;
-            padding: 20px;
+            z-index: 9999;
+            backdrop-filter: blur(10px);
         }
 
         #video-expandido {
-            max-width: 100%;
-            max-height: 80vh;
+            width: 90%;
+            max-height: 75vh;
             border-radius: 15px;
-            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            border: 1px solid var(--accent);
         }
 
         .btn-fechar {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: white;
-            color: black;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 30px;
-            font-weight: bold;
+            margin-top: 20px;
+            background: transparent;
+            color: var(--text-dim);
+            border: 1px solid var(--text-dim);
+            padding: 10px 30px;
+            border-radius: 20px;
             cursor: pointer;
         }
 
         .btn-download-zoom {
-            margin-top: 20px;
+            margin-top: 15px;
             background: var(--accent);
             color: white;
             padding: 15px 40px;
@@ -135,31 +148,69 @@
             font-weight: bold;
             text-transform: uppercase;
         }
+
+        .empty-msg {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 50px;
+            color: var(--text-dim);
+            opacity: 0.6;
+        }
     </style>
 </head>
-<body>
+<body onload="sincronizarInterface()">
 
-    <div class="header">
-        <h1 id="nome-evento-titulo">GERAL</h1>
-        <div class="search-container">
-            <input type="text" id="busca" placeholder="Buscar meu vídeo..." oninput="filtrar()">
-        </div>
+    <div class="header" onclick="contarCliques()">
+        <h1>AUTOGRAPH CAM</h1>
+        <p>colecionando momentos</p>
+        <div id="nome-evento-banner">CARREGANDO EVENTO...</div>
+    </div>
+
+    <div class="search-container">
+        <input type="text" id="input-busca" placeholder="Digite o número do seu vídeo..." oninput="iniciarBuscaInteligente()">
     </div>
 
     <div id="grade-videos" class="grid-videos"></div>
 
     <!-- MODAL DE ZOOM -->
-    <div id="modal-zoom" onclick="fecharZoom()">
-        <button class="btn-fechar">X FECHAR</button>
+    <div id="modal-zoom">
         <video id="video-expandido" controls playsinline></video>
-        <a id="link-download" href="#" download class="btn-download-zoom">BAIXAR VÍDEO</a>
+        <a id="link-download" href="#" download class="btn-download-zoom">BAIXAR MEU VÍDEO</a>
+        <button class="btn-fechar" onclick="fecharZoom()">FECHAR</button>
     </div>
 
 <script>
     const WORKER_URL = "https://autographcam.maxprimefotovideo.workers.dev";
-    let todosArquivos = [];
+    let listaArquivosAtuais = [];
+    let cliquesVoltar = 0;
+    let timerBusca;
 
-    async function carregarGaleria() {
+    // 1. Atalho Secreto (7 cliques no título)
+    function contarCliques() {
+        cliquesVoltar++;
+        if (cliquesVoltar >= 7) {
+            window.location.href = 'index.html';
+        }
+        setTimeout(() => { cliquesVoltar = 0; }, 3000); // Reseta se demorar a clicar
+    }
+
+    // 2. Busca Inteligente (Aguarda 3s e abre zoom)
+    function iniciarBuscaInteligente() {
+        clearTimeout(timerBusca);
+        const termo = document.getElementById('input-busca').value.trim();
+        
+        if(termo.length > 0) {
+            timerBusca = setTimeout(() => {
+                const encontrado = listaArquivosAtuais.find(arq => arq.key.toLowerCase().includes(termo.toLowerCase()));
+                if(encontrado) {
+                    const videoUrl = `${WORKER_URL}/ver-video?file=${encodeURIComponent(encontrado.key)}`;
+                    abrirZoom(videoUrl);
+                }
+            }, 3000);
+        }
+    }
+
+    async function sincronizarInterface() {
         const urlParams = new URLSearchParams(window.location.search);
         let eventoID = urlParams.get('evento');
 
@@ -168,35 +219,43 @@
             eventoID = configLocal ? configLocal.nome : "Geral";
         }
 
-        document.getElementById('nome-evento-titulo').innerText = eventoID.replace(/_/g, ' ');
+        document.getElementById('nome-evento-banner').innerText = "Evento: " + eventoID.toUpperCase().replace(/_/g, ' ');
 
         const pastaR2 = eventoID.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '_');
 
         try {
             const res = await fetch(`${WORKER_URL}/listar-videos-evento?evento=${encodeURIComponent(pastaR2)}&t=${Date.now()}`);
-            let dados = await res.json();
+            const novosArquivos = await res.json();
 
-            // ORDEM: Mais novos primeiro (baseado no nome do arquivo se tiver timestamp)
-            dados.reverse(); 
+            // Inverter para mostrar os mais recentes primeiro
+            novosArquivos.reverse();
 
-            todosArquivos = dados;
-            renderizar(todosArquivos);
+            if (JSON.stringify(novosArquivos) !== JSON.stringify(listaArquivosAtuais)) {
+                listaArquivosAtuais = novosArquivos;
+                renderizar(novosArquivos);
+            }
         } catch (e) {
-            console.error("Erro:", e);
+            console.error("Erro ao buscar vídeos:", e);
         }
     }
 
-    function renderizar(lista) {
+    function renderizar(arquivos) {
         const container = document.getElementById('grade-videos');
         container.innerHTML = '';
 
-        lista.forEach(arq => {
-            const videoUrl = `${WORKER_URL}/ver-video?file=${encodeURIComponent(arq.key)}`;
+        if (!arquivos || arquivos.length === 0) {
+            container.innerHTML = `<div class="empty-msg">Aguardando os primeiros vídeos...</div>`;
+            return;
+        }
+
+        arquivos.forEach(file => {
+            const videoUrl = `${WORKER_URL}/ver-video?file=${encodeURIComponent(file.key)}`;
             const card = document.createElement('div');
             card.className = 'video-card';
-            card.innerHTML = `
-                <video src="${videoUrl}#t=0.1" preload="metadata" muted playsinline></video>
-            `;
+            
+            // O truque do #t=0.1 garante que o vídeo mostre uma imagem inicial e não fique preto
+            card.innerHTML = `<video src="${videoUrl}#t=0.1" preload="metadata" muted playsinline></video>`;
+
             card.onclick = () => abrirZoom(videoUrl);
             container.appendChild(card);
         });
@@ -219,17 +278,11 @@
         vid.pause();
         vid.src = "";
         modal.style.display = 'none';
+        document.getElementById('input-busca').value = ''; // Limpa busca ao fechar
     }
 
-    function filtrar() {
-        const termo = document.getElementById('busca').value.toLowerCase();
-        const filtrados = todosArquivos.filter(a => a.key.toLowerCase().includes(termo));
-        renderizar(filtrados);
-    }
-
-    carregarGaleria();
-    // Atualiza a cada 15 segundos para novos vídeos
-    setInterval(carregarGaleria, 15000);
+    // Atualização automática
+    setInterval(sincronizarInterface, 10000);
 </script>
 </body>
 </html>
