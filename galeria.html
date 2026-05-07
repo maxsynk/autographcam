@@ -24,167 +24,212 @@
             min-height: 100vh;
         }
 
+        /* HEADER ORIGINAL RECOMPILADO */
         .header {
             width: 100%;
-            padding: 30px 0;
+            padding: 40px 0 20px 0;
             text-align: center;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.4), transparent);
+            background: linear-gradient(to bottom, rgba(0,0,0,0.5), transparent);
         }
 
         #nome-evento-titulo {
-            color: var(--accent);
-            font-size: 24px;
+            color: var(--text-main);
+            font-size: 32px;
             font-weight: 900;
-            letter-spacing: 4px;
+            letter-spacing: 3px;
             margin: 0;
             text-transform: uppercase;
         }
 
+        .search-container {
+            width: 90%;
+            max-width: 400px;
+            margin: 20px auto;
+            position: relative;
+        }
+
+        .search-container input {
+            width: 100%;
+            padding: 15px 20px;
+            background: var(--bg-surface);
+            border: 1px solid var(--accent);
+            border-radius: 30px;
+            color: white;
+            box-sizing: border-box;
+            outline: none;
+            font-size: 16px;
+        }
+
+        /* GRID E CARDS */
         .grid-videos {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-            gap: 15px;
-            width: 92%;
+            grid-template-columns: repeat(2, 1fr); /* 2 colunas no mobile */
+            gap: 12px;
+            width: 94%;
             max-width: 1000px;
-            padding: 20px 0;
+            padding-bottom: 50px;
+        }
+
+        @media (min-width: 768px) {
+            .grid-videos { grid-template-columns: repeat(4, 1fr); }
         }
 
         .video-card {
             background: var(--bg-surface);
-            border-radius: 12px;
+            border-radius: 15px;
             overflow: hidden;
             aspect-ratio: 9/16;
             position: relative;
-            border: 1px solid rgba(105, 130, 158, 0.1);
+            cursor: pointer;
+            border: 1px solid rgba(105, 130, 158, 0.2);
+            transition: transform 0.3s;
         }
 
-        video {
+        .video-card video {
             width: 100%;
             height: 100%;
             object-fit: cover;
+            pointer-events: none; /* Para o clique cair no card */
         }
 
-        .btn-download {
+        /* MODAL DE ZOOM */
+        #modal-zoom {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.95);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            padding: 20px;
+        }
+
+        #video-expandido {
+            max-width: 100%;
+            max-height: 80vh;
+            border-radius: 15px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+        }
+
+        .btn-fechar {
             position: absolute;
-            bottom: 10px;
-            right: 10px;
-            background: var(--accent);
-            color: white;
+            top: 20px;
+            right: 20px;
+            background: white;
+            color: black;
             border: none;
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-size: 12px;
+            padding: 10px 20px;
+            border-radius: 30px;
             font-weight: bold;
             cursor: pointer;
-            text-decoration: none;
         }
 
-        .empty-msg {
-            grid-column: 1 / -1;
-            text-align: center;
-            padding: 50px;
-            color: var(--text-dim);
-            opacity: 0.6;
+        .btn-download-zoom {
+            margin-top: 20px;
+            background: var(--accent);
+            color: white;
+            padding: 15px 40px;
+            border-radius: 30px;
+            text-decoration: none;
+            font-weight: bold;
+            text-transform: uppercase;
         }
     </style>
 </head>
 <body>
 
     <div class="header">
-        <h1 id="nome-evento-titulo">CARREGANDO...</h1>
+        <h1 id="nome-evento-titulo">GERAL</h1>
+        <div class="search-container">
+            <input type="text" id="busca" placeholder="Buscar meu vídeo..." oninput="filtrar()">
+        </div>
     </div>
 
-    <div id="grade-videos" class="grid-videos">
-        <!-- Vídeos entram aqui via JS -->
+    <div id="grade-videos" class="grid-videos"></div>
+
+    <!-- MODAL DE ZOOM -->
+    <div id="modal-zoom" onclick="fecharZoom()">
+        <button class="btn-fechar">X FECHAR</button>
+        <video id="video-expandido" controls playsinline></video>
+        <a id="link-download" href="#" download class="btn-download-zoom">BAIXAR VÍDEO</a>
     </div>
 
 <script>
     const WORKER_URL = "https://autographcam.maxprimefotovideo.workers.dev";
-    let listaArquivosAtuais = [];
-    let nomeEventoGlobal = "";
+    let todosArquivos = [];
 
-    // Função para limpar o nome (exatamente como no Index)
-    function limparNome(nome) {
-        return nome
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "")
-            .replace(/\s+/g, '_');
-    }
-
-    async function sincronizarInterface() {
+    async function carregarGaleria() {
         const urlParams = new URLSearchParams(window.location.search);
         let eventoID = urlParams.get('evento');
 
-        // Se não houver na URL, tenta pegar do localStorage (evento ativo no tablet/PC)
         if (!eventoID) {
             const configLocal = JSON.parse(localStorage.getItem('config_atual'));
-            if (configLocal) {
-                eventoID = configLocal.nome;
-            }
+            eventoID = configLocal ? configLocal.nome : "Geral";
         }
 
-        if (!eventoID) {
-            document.getElementById('nome-evento-titulo').innerText = "NENHUM EVENTO ATIVO";
-            return;
-        }
+        document.getElementById('nome-evento-titulo').innerText = eventoID.replace(/_/g, ' ');
 
-        // 1. Limpa o nome para buscar no R2
-        const pastaR2 = limparNome(eventoID);
-        nomeEventoGlobal = pastaR2;
-
-        // 2. Atualiza o Título na tela
-        document.getElementById('nome-evento-titulo').innerText = eventoID.toUpperCase().replace(/_/g, ' ');
+        const pastaR2 = eventoID.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '_');
 
         try {
-            // 3. Busca a lista de vídeos no Worker
-            const response = await fetch(`${WORKER_URL}/listar-videos-evento?evento=${encodeURIComponent(pastaR2)}&t=${Date.now()}`);
-            const novosArquivos = await response.json();
+            const res = await fetch(`${WORKER_URL}/listar-videos-evento?evento=${encodeURIComponent(pastaR2)}&t=${Date.now()}`);
+            let dados = await res.json();
 
-            // Só renderiza se houver mudança na lista
-            if (JSON.stringify(novosArquivos) !== JSON.stringify(listaArquivosAtuais)) {
-                listaArquivosAtuais = novosArquivos;
-                renderizar(novosArquivos);
-            }
+            // ORDEM: Mais novos primeiro (baseado no nome do arquivo se tiver timestamp)
+            dados.reverse(); 
+
+            todosArquivos = dados;
+            renderizar(todosArquivos);
         } catch (e) {
-            console.error("Erro ao buscar vídeos:", e);
+            console.error("Erro:", e);
         }
     }
 
-    function renderizar(arquivos) {
+    function renderizar(lista) {
         const container = document.getElementById('grade-videos');
         container.innerHTML = '';
 
-        if (!arquivos || arquivos.length === 0) {
-            container.innerHTML = `<div class="empty-msg">Nenhum vídeo encontrado para este evento ainda.</div>`;
-            return;
-        }
-
-        arquivos.forEach(file => {
+        lista.forEach(arq => {
+            const videoUrl = `${WORKER_URL}/ver-video?file=${encodeURIComponent(arq.key)}`;
             const card = document.createElement('div');
             card.className = 'video-card';
-            
-            // Link direto para o vídeo no seu R2/Worker
-            const videoUrl = `${WORKER_URL}/ver-video?file=${encodeURIComponent(file.key)}`;
-
             card.innerHTML = `
-                <video src="${videoUrl}" preload="metadata" muted playsinline></video>
-                <a href="${videoUrl}" download class="btn-download">BAIXAR</a>
+                <video src="${videoUrl}#t=0.1" preload="metadata" muted playsinline></video>
             `;
-
-            // Play/Pause simples ao tocar
-            card.onclick = () => {
-                const v = card.querySelector('video');
-                v.paused ? v.play() : v.pause();
-            };
-
+            card.onclick = () => abrirZoom(videoUrl);
             container.appendChild(card);
         });
     }
 
-    // Inicia e fica verificando novos vídeos a cada 10 segundos
-    sincronizarInterface();
-    setInterval(sincronizarInterface, 10000);
+    function abrirZoom(url) {
+        const modal = document.getElementById('modal-zoom');
+        const vid = document.getElementById('video-expandido');
+        const link = document.getElementById('link-download');
+        
+        vid.src = url;
+        link.href = url;
+        modal.style.display = 'flex';
+        vid.play();
+    }
 
+    function fecharZoom() {
+        const modal = document.getElementById('modal-zoom');
+        const vid = document.getElementById('video-expandido');
+        vid.pause();
+        vid.src = "";
+        modal.style.display = 'none';
+    }
+
+    function filtrar() {
+        const termo = document.getElementById('busca').value.toLowerCase();
+        const filtrados = todosArquivos.filter(a => a.key.toLowerCase().includes(termo));
+        renderizar(filtrados);
+    }
+
+    carregarGaleria();
+    // Atualiza a cada 15 segundos para novos vídeos
+    setInterval(carregarGaleria, 15000);
 </script>
 </body>
 </html>
