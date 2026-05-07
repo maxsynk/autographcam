@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>GALERIA - AUTOGRAPH CAM</title>
+    <!-- BIBLIOTECA PARA O DOWNLOAD FUNCIONAR SEGURO -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <style>
         :root {
             --bg-deep: #0E1A25;
@@ -24,7 +26,7 @@
             min-height: 100vh;
         }
 
-        /* HEADER E ATALHO */
+        /* HEADER */
         .header {
             margin-top: 1.2cm;
             text-align: center;
@@ -64,10 +66,12 @@
             width: 90%;
             max-width: 400px;
             margin-bottom: 25px;
+            display: flex;
+            gap: 10px;
         }
 
         .search-container input {
-            width: 100%;
+            flex: 1;
             padding: 15px;
             background: var(--bg-surface);
             border: 1px solid var(--accent);
@@ -76,7 +80,16 @@
             font-size: 16px;
             outline: none;
             text-align: center;
-            box-sizing: border-box;
+        }
+
+        .btn-busca {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 0 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
         }
 
         /* GRID */
@@ -86,7 +99,7 @@
             gap: 15px;
             width: 94%;
             max-width: 1100px;
-            padding-bottom: 50px;
+            padding-bottom: 80px;
         }
 
         .video-card {
@@ -98,14 +111,6 @@
             border: 1px solid rgba(105, 130, 158, 0.2);
         }
 
-        .video-card video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            cursor: pointer;
-        }
-
-        /* NUMERAÇÃO */
         .video-number {
             position: absolute;
             top: 10px;
@@ -119,26 +124,18 @@
             z-index: 5;
         }
 
-        /* BOTÃO DOWNLOAD NA GRADE */
-        .btn-download-grid {
-            position: absolute;
-            bottom: 10px;
-            right: 10px;
-            background: var(--accent);
-            color: white;
-            padding: 8px 12px;
-            border-radius: 8px;
-            text-decoration: none;
-            font-size: 12px;
-            font-weight: bold;
-            z-index: 5;
+        .video-card video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            cursor: pointer;
         }
 
         /* MODAL ZOOM */
         #modal-zoom {
             position: fixed;
             inset: 0;
-            background: rgba(0, 0, 0, 0.95);
+            background: rgba(0, 0, 0, 0.98);
             display: none;
             flex-direction: column;
             align-items: center;
@@ -146,126 +143,149 @@
             z-index: 10000;
         }
 
-        #video-expandido {
-            width: 90%;
+        #media-full {
+            width: 85%;
             max-height: 70vh;
-            border-radius: 10px;
+            border-radius: 15px;
+            border: 2px solid var(--accent);
         }
 
-        .btn-fechar-zoom {
-            margin-top: 20px;
-            background: white;
-            color: black;
-            padding: 10px 30px;
-            border-radius: 20px;
+        .modal-controls {
+            margin-top: 25px;
+            display: flex;
+            gap: 10px;
+            width: 85%;
+            justify-content: center;
+        }
+
+        .btn-action {
+            padding: 15px 25px;
+            border-radius: 30px;
             border: none;
             font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
         }
+
+        .btn-close { background: #333; color: white; }
+        .btn-download { background: var(--accent); color: white; }
+
     </style>
 </head>
-<body onload="sincronizarInterface()">
+<body>
 
-    <div class="header" onclick="contarCliques()">
+    <div class="header" id="logo-exit">
         <h1>AUTOGRAPH CAM</h1>
         <p>colecionando momentos</p>
         <div id="nome-evento-banner">CARREGANDO...</div>
     </div>
 
     <div class="search-container">
-        <input type="text" id="input-busca" placeholder="Digite o número do vídeo..." oninput="iniciarBuscaInteligente()">
+        <input type="number" id="input-busca" placeholder="Nº DO VÍDEO">
+        <button class="btn-busca" onclick="executarBusca()">🔍</button>
     </div>
 
     <div id="grade-videos" class="grid-videos"></div>
 
     <div id="modal-zoom">
-        <video id="video-expandido" controls playsinline></video>
-        <button class="btn-fechar-zoom" onclick="fecharZoom()">FECHAR</button>
+        <video id="media-full" controls playsinline crossorigin="anonymous"></video>
+        <div class="modal-controls">
+            <button class="btn-action btn-close" onclick="fecharZoom()">FECHAR</button>
+            <button id="btn-download-force" class="btn-action btn-download">BAIXAR VÍDEO</button>
+        </div>
     </div>
 
 <script>
     const WORKER_URL = "https://autographcam.maxprimefotovideo.workers.dev";
     let listaArquivosAtuais = [];
-    let cliquesVoltar = 0;
-    let timerBusca;
+    let cliquesSaida = 0;
 
-    function contarCliques() {
-        cliquesVoltar++;
-        if (cliquesVoltar >= 7) window.location.href = 'index.html';
-        setTimeout(() => { cliquesVoltar = 0; }, 3000);
-    }
-
-    function iniciarBuscaInteligente() {
-        clearTimeout(timerBusca);
-        const termo = document.getElementById('input-busca').value.trim();
-        if(termo.length > 0) {
-            timerBusca = setTimeout(() => {
-                // Tenta achar pelo número (#1, #2...) ou nome do arquivo
-                const encontrado = listaArquivosAtuais.find((arq, index) => {
-                    const numExibicao = listaArquivosAtuais.length - index;
-                    return numExibicao.toString() === termo || arq.key.includes(termo);
-                });
-                if(encontrado) {
-                    abrirZoom(`${WORKER_URL}/ver-video?file=${encodeURIComponent(encontrado.key)}`);
-                }
-            }, 3000);
-        }
-    }
+    // SAÍDA PARA ADMIN (7 Cliques no Título)
+    document.getElementById('logo-exit').onclick = () => {
+        if(++cliquesSaida >= 7) window.location.href = 'index.html';
+        setTimeout(() => { cliquesSaida = 0; }, 3000);
+    };
 
     async function sincronizarInterface() {
         const urlParams = new URLSearchParams(window.location.search);
         let eventoID = urlParams.get('evento') || (JSON.parse(localStorage.getItem('config_atual')) || {nome: "Geral"}).nome;
         
-        document.getElementById('nome-evento-banner').innerText = "Evento: " + eventoID.toUpperCase();
+        document.getElementById('nome-evento-banner').innerText = "Evento: " + eventoID.toUpperCase().replace(/_/g, ' ');
         const pastaR2 = eventoID.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '_');
 
         try {
-            const res = await fetch(`${WORKER_URL}/listar-videos-evento?evento=${encodeURIComponent(pastaR2)}&t=${Date.now()}`);
+            // USANDO O ENDPOINT DO CÓDIGO QUE VOCÊ MANDOU
+            const res = await fetch(`${WORKER_URL}/listar-galeria?evento=${encodeURIComponent(pastaR2)}&t=${Date.now()}`);
             const dados = await res.json();
-            dados.reverse(); // Novos primeiro
+            
+            // Filtra apenas os finais para não dar erro de renderização
+            const filtrados = dados.filter(f => f.path.toLowerCase().includes('final_'));
 
-            if (JSON.stringify(dados) !== JSON.stringify(listaArquivosAtuais)) {
-                listaArquivosAtuais = dados;
-                renderizar(dados);
+            if (JSON.stringify(filtrados) !== JSON.stringify(listaArquivosAtuais)) {
+                listaArquivosAtuais = filtrados;
+                renderizar();
             }
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error("Erro na lista:", e); }
     }
 
-    function renderizar(arquivos) {
+    function renderizar() {
         const container = document.getElementById('grade-videos');
         container.innerHTML = '';
-        arquivos.forEach((file, index) => {
-            const videoUrl = `${WORKER_URL}/ver-video?file=${encodeURIComponent(file.key)}`;
-            const num = arquivos.length - index;
+        
+        listaArquivosAtuais.forEach((file, index) => {
+            // USANDO O ENDPOINT /stream QUE VOCÊ MANDOU
+            const url = `${WORKER_URL}/stream?id=${encodeURIComponent(file.path)}`;
+            const num = index + 1;
             
             const card = document.createElement('div');
             card.className = 'video-card';
             card.innerHTML = `
                 <div class="video-number">#${num}</div>
-                <video src="${videoUrl}#t=0.1" preload="metadata" muted playsinline onclick="abrirZoom('${videoUrl}')"></video>
-                <a href="${videoUrl}" download="video_${num}.mp4" class="btn-download-grid">BAIXAR</a>
+                <video src="${url}#t=0.5" muted playsinline></video>
             `;
+            card.onclick = () => abrirZoom(url, file.path);
             container.appendChild(card);
         });
     }
 
-    function abrirZoom(url) {
+    function executarBusca() {
+        const val = document.getElementById('input-busca').value;
+        const index = parseInt(val) - 1;
+        if (listaArquivosAtuais[index]) {
+            const file = listaArquivosAtuais[index];
+            const url = `${WORKER_URL}/stream?id=${encodeURIComponent(file.path)}`;
+            abrirZoom(url, file.path);
+        } else {
+            alert("Vídeo não encontrado!");
+        }
+    }
+
+    function abrirZoom(url, path) {
         const modal = document.getElementById('modal-zoom');
-        const vid = document.getElementById('video-expandido');
-        vid.src = url;
+        const video = document.getElementById('media-full');
         modal.style.display = 'flex';
-        vid.play();
+        video.src = url;
+        video.play();
+
+        // LOGICA DE DOWNLOAD DO CÓDIGO QUE FUNCIONA
+        document.getElementById('btn-download-force').onclick = () => {
+            fetch(url).then(r => r.blob()).then(b => {
+                saveAs(b, path.split('/').pop());
+            });
+        };
     }
 
     function fecharZoom() {
         const modal = document.getElementById('modal-zoom');
-        const vid = document.getElementById('video-expandido');
+        const vid = document.getElementById('media-full');
         vid.pause();
         vid.src = "";
         modal.style.display = 'none';
-        document.getElementById('input-busca').value = '';
     }
 
-    setInterval(sincronizarInterface, 10000);
+    // Inicia e atualiza
+    sincronizarInterface();
+    setInterval(sincronizarInterface, 7000);
 </script>
 </body>
 </html>
