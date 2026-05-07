@@ -7,14 +7,25 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <style>
         :root { --bg: #0E1A25; --surface: #182232; --accent: #69829E; --text: #EFEEE9; }
-        body { margin: 0; background: var(--bg); color: var(--text); font-family: sans-serif; text-align: center; }
         
-        /* Ajuste no Header para suportar subtítulo */
-        .header { padding: 30px 20px 10px 20px; cursor: pointer; }
-        .header h1 { font-size: 32px; letter-spacing: 4px; margin: 0; text-transform: uppercase; }
+        /* Bloqueia seleção de texto para evitar cópias acidentais */
+        * { -webkit-tap-highlight-color: transparent; user-select: none; }
+
+        body { 
+            margin: 0; 
+            background: var(--bg); 
+            color: var(--text); 
+            font-family: sans-serif; 
+            text-align: center; 
+            overflow-x: hidden;
+            overscroll-behavior-y: contain; /* Evita o "puxar para atualizar" no Android/iOS */
+        }
+        
+        .header { padding: 30px 20px 10px 20px; }
+        .header h1 { font-size: 32px; letter-spacing: 4px; margin: 0; text-transform: uppercase; font-weight: 900; }
         .subtitle { font-size: 11px; letter-spacing: 4px; opacity: 0.9; margin-top: 2px; text-transform: uppercase; color: var(--accent); }
         
-        /* Container do Nome do Evento (Estilo Admin) */
+        /* Estilo Evento igual Admin */
         .event-info-container {
             display: flex;
             align-items: center;
@@ -32,7 +43,7 @@
             text-align: left;
         }
 
-        /* Área de Busca (Igual Admin) */
+        /* Buscador igual Admin */
         .search-area { 
             padding: 15px; 
             background: rgba(0,0,0,0.3); 
@@ -59,27 +70,26 @@
             aspect-ratio: 9/16; position: relative; border: 1px solid rgba(105, 130, 158, 0.2); 
         }
         
-        .card video { width: 100%; height: 100%; object-fit: cover; }
-        .num { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.6); padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+        .card video { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+        .num { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.6); padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
 
         /* MODAL */
-        #modal { position: fixed; inset: 0; background: #000; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
-        #vid-full { width: 90%; max-height: 70vh; border-radius: 10px; }
-        .btns { margin-top: 20px; display: flex; gap: 10px; }
-        .btn { padding: 15px 25px; border-radius: 25px; border: none; font-weight: bold; cursor: pointer; }
+        #modal { position: fixed; inset: 0; background: #000; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
+        #vid-full { width: 90%; max-height: 70vh; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        .btns { margin-top: 25px; display: flex; gap: 15px; }
+        .btn { padding: 15px 30px; border-radius: 30px; border: none; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 13px; }
+        .btn-back { background: #333; color: white; }
         .btn-dl { background: var(--accent); color: white; }
     </style>
 </head>
-<body>
-
-    <div class="header" onclick="contarCliquesSair()">
+<body oncontextmenu="return false;"> <div class="header" onclick="contarCliquesSair()">
         <h1>AUTOGRAPH CAM</h1>
         <div class="subtitle">colecionando momentos</div>
     </div>
 
     <div class="event-info-container">
         <div class="v-line"></div>
-        <div id="nome-evento">Carregando...</div>
+        <div id="nome-evento">SINCRONIZANDO...</div>
     </div>
 
     <div class="search-area">
@@ -89,30 +99,55 @@
     <div id="grid" class="grid"></div>
 
     <div id="modal">
-        <video id="vid-full" controls playsinline></video>
+        <video id="vid-full" controls playsinline crossorigin="anonymous"></video>
         <div class="btns">
-            <button class="btn" onclick="fechar()">VOLTAR</button>
-            <button id="btn-save" class="btn btn-dl">BAIXAR</button>
+            <button class="btn btn-back" onclick="fechar()">VOLTAR</button>
+            <button id="btn-save" class="btn btn-dl">BAIXAR VÍDEO</button>
         </div>
     </div>
 
 <script>
     const WORKER = "https://autographcam.maxprimefotovideo.workers.dev";
     let ultimaLista = "";
-    let listaFinaisCache = []; // Para busca rápida
+    let listaFinaisCache = [];
     let cliquesSaida = 0;
     let tempoBusca;
+    let bloqueioAtivo = true;
 
-    // Função para sair após 7 cliques no título
+    // --- SISTEMA DE BLOQUEIO ANTI-SAÍDA (ANDROID & IPHONE) ---
+    function iniciarBloqueio() {
+        // Empurra estado inicial
+        history.pushState(null, null, window.location.href);
+        
+        // Bloqueia botão voltar (Android e Navegadores)
+        window.onpopstate = function() {
+            if (bloqueioAtivo) {
+                history.pushState(null, null, window.location.href);
+            }
+        };
+
+        // Bloqueia gesto de "Swipe" (arrastar da borda) no iPhone
+        window.addEventListener('touchstart', function(e) {
+            if (bloqueioAtivo && e.pageX < 40) { // Detecta toque na borda esquerda
+                e.preventDefault();
+            }
+        }, { passive: false });
+    }
+
+    // Inicia a trava imediatamente
+    iniciarBloqueio();
+
+    // Atalho Secreto: 7 cliques no título para voltar
     function contarCliquesSair() {
         cliquesSaida++;
         if (cliquesSaida >= 7) {
+            bloqueioAtivo = false;
             window.location.href = 'index.html';
         }
-        setTimeout(() => { cliquesSaida = 0; }, 3000); // Reseta se demorar muito entre cliques
+        setTimeout(() => { cliquesSaida = 0; }, 3000);
     }
 
-    // Função de Timer para Busca (3 segundos)
+    // Buscador automático de 3 segundos
     function timerBusca() {
         clearTimeout(tempoBusca);
         const valor = document.getElementById('input-busca').value;
@@ -130,6 +165,9 @@
             const url = `${WORKER}/stream?id=${encodeURIComponent(file.path)}`;
             abrir(url, file.path);
             document.getElementById('input-busca').value = '';
+        } else if (num !== "") {
+            alert("Vídeo #" + num + " não encontrado.");
+            document.getElementById('input-busca').value = '';
         }
     }
 
@@ -141,20 +179,21 @@
         if (!eventoID) return;
         
         const pastaEvento = eventoID.replace(/\s+/g, '_');
-        // Nome do evento sem underlines no título
         document.getElementById('nome-evento').innerText = pastaEvento.replace(/_/g, ' ');
 
         try {
             const res = await fetch(`${WORKER}/listar-videos-evento?evento=${encodeURIComponent(pastaEvento)}`);
             const arquivos = await res.json();
             
-            if (JSON.stringify(arquivos) !== ultimaLista) {
-                ultimaLista = JSON.stringify(arquivos);
-                // Filtra e armazena em cache para a busca funcionar por index
-                listaFinaisCache = arquivos.filter(f => f.path.includes('final_'));
-                renderizar(listaFinaisCache);
+            // Filtra apenas os finalizados pelo motor Python
+            const apenasFinais = arquivos.filter(f => f.path.includes('final_'));
+
+            if (JSON.stringify(apenasFinais) !== ultimaLista) {
+                ultimaLista = JSON.stringify(apenasFinais);
+                listaFinaisCache = apenasFinais;
+                renderizar(apenasFinais);
             }
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error("Erro na sincronização."); }
     }
 
     function renderizar(finais) {
@@ -162,7 +201,7 @@
         grid.innerHTML = "";
         
         if (finais.length === 0) {
-            grid.innerHTML = "<p style='grid-column: 1/-1; opacity:0.5;'>Nenhum vídeo encontrado.</p>";
+            grid.innerHTML = "<p style='grid-column: 1/-1; opacity:0.5; margin-top:50px;'>Aguardando vídeos serem processados...</p>";
             return;
         }
 
@@ -187,16 +226,29 @@
         v.play();
 
         document.getElementById('btn-save').onclick = () => {
-            fetch(url).then(r => r.blob()).then(b => saveAs(b, path.split('/').pop()));
+            const btn = document.getElementById('btn-save');
+            btn.innerText = "BAIXANDO...";
+            fetch(url)
+                .then(r => r.blob())
+                .then(b => {
+                    saveAs(b, path.split('/').pop());
+                    btn.innerText = "BAIXAR VÍDEO";
+                })
+                .catch(() => {
+                    alert("Erro ao baixar. Tente novamente.");
+                    btn.innerText = "BAIXAR VÍDEO";
+                });
         };
     }
 
     function fechar() {
         document.getElementById('modal').style.display = "none";
-        document.getElementById('vid-full').pause();
-        document.getElementById('vid-full').src = "";
+        const v = document.getElementById('vid-full');
+        v.pause();
+        v.src = "";
     }
 
+    // Inicialização
     setInterval(carregar, 5000);
     carregar();
 </script>
