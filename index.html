@@ -169,7 +169,7 @@
     </div>
 
 <script>
-    const SENHA_MESTRA = "1234"; // COLOQUE SUA SENHA AQUI
+    const SENHA_MESTRA = "1234"; // Coloque sua senha aqui
     const WORKER_URL = "https://autographcam.maxprimefotovideo.workers.dev";
 
     window.onload = () => { if(sessionStorage.getItem('logado') === 'true') liberarSistema(); };
@@ -195,12 +195,12 @@
     function copiarLinkCliente() {
         const config = JSON.parse(localStorage.getItem('config_atual'));
         if (!config) { alert("Ative um evento primeiro!"); return; }
-        const pasta = config.id_fixo || config.nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '_');
+        const pasta = config.id_fixo || config.id;
         const link = `https://maxsynk.github.io/autographcam/galeria.html?evento=${encodeURIComponent(pasta)}`;
         navigator.clipboard.writeText(link).then(() => alert("Link copiado!"));
     }
 
-    // CORREÇÃO: Prepara os dados vindo do DB D1 para o formato que o app espera
+    // MAPEAMENTO CORRETO: Banco D1 -> Objeto do App
     function prepararDadosEvento(ev) {
         return { 
             id: String(ev.id), 
@@ -236,13 +236,13 @@
         const eventoAtivoConfig = JSON.parse(localStorage.getItem('config_atual'));
         
         try {
-            // CORREÇÃO: Cache-buster (?t=) para garantir que novos eventos apareçam na hora
+            // O t=Date.now() é OBRIGATÓRIO para ver os eventos novos na hora
             const res = await fetch(`${WORKER_URL}/listar-eventos?t=${Date.now()}`);
-            if (!res.ok) throw new Error();
+            if (!res.ok) throw new Error("Erro na conexão");
             const eventos = await res.json();
             
             if(!eventos || eventos.length === 0) { 
-                container.innerHTML = `<p style="text-align:center; opacity:0.5; margin-top:20px;">Sem eventos cadastrados.</p>`; 
+                container.innerHTML = `<p style="text-align:center; opacity:0.5; margin-top:20px;">Sem eventos no banco de dados.</p>`; 
                 return; 
             }
 
@@ -251,8 +251,8 @@
                 const evProcessado = prepararDadosEvento(ev);
                 const estaAtivo = eventoAtivoConfig && (String(eventoAtivoConfig.id) === String(evProcessado.id));
                 
-                // Limpa as aspas para não quebrar o HTML do botão
-                const evDataRaw = JSON.stringify(evProcessado).replace(/'/g, "&apos;").replace(/"/g, '&quot;');
+                // Transforma o objeto em texto seguro para o botão
+                const evDataRaw = JSON.stringify(evProcessado).replace(/"/g, '&quot;');
                 
                 const card = document.createElement('div');
                 card.className = `event-card ${estaAtivo ? 'active-border' : ''}`;
@@ -274,37 +274,22 @@
                 container.appendChild(card);
             });
         } catch (err) { 
-            console.error(err);
-            container.innerHTML = `<p style="color: #ff5555; text-align:center;">Erro ao carregar lista de eventos.</p>`; 
+            container.innerHTML = `<p style="color: #ff5555; text-align:center;">Erro ao carregar lista. Verifique o Worker.</p>`; 
         }
     }
 
     async function excluirEvento(id) {
-        if (!confirm(`⚠️ ATENÇÃO: Isso apagará permanentemente o evento e TODOS os vídeos do servidor (R2). Confirma?`)) return;
-        
+        if (!confirm(`Confirmar exclusão?`)) return;
         try {
-            const res = await fetch(`${WORKER_URL}/deletar-evento`, {
+            await fetch(`${WORKER_URL}/deletar-evento`, {
                 method: 'POST',
-                mode: 'cors',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ evento_id: String(id) })
             });
-
-            if (!res.ok) throw new Error("Erro no servidor");
-
-            const data = await res.json();
-            if (data.success) {
-                alert("Evento e arquivos removidos!");
-                const atual = JSON.parse(localStorage.getItem('config_atual'));
-                if (atual && String(atual.id) === String(id)) localStorage.removeItem('config_atual');
-                renderEventos();
-            } else {
-                alert("Erro: " + data.error);
-            }
-        } catch (e) {
-            console.error(e);
-            alert("Erro de conexão com o servidor.");
-        }
+            const atual = JSON.parse(localStorage.getItem('config_atual'));
+            if (atual && String(atual.id) === String(id)) localStorage.removeItem('config_atual');
+            renderEventos();
+        } catch (e) { alert("Erro ao excluir"); }
     }
 
     function bloquear() { sessionStorage.removeItem('logado'); location.reload(); }
