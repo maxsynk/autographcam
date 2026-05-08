@@ -88,7 +88,6 @@
     </div>
 
     <div class="container">
-        <!-- IDs ocultos para controle do banco -->
         <input type="hidden" id="conf-id">
         <input type="hidden" id="conf-id-fixo">
 
@@ -118,7 +117,6 @@
                 <input type="file" id="file-moldura" accept="image/png" style="display:none" onchange="subirArquivo(this, 'MOLDURA')">
             </div>
             
-            <!-- Guardam os caminhos do R2 -->
             <input type="hidden" id="conf-moldura-url">
             <input type="hidden" id="conf-musica-url">
             
@@ -129,7 +127,6 @@
         <p onclick="window.location.href='index.html'" style="text-align:center; color:var(--accent); font-size:12px; margin-top:20px; cursor:pointer; font-weight:bold; text-transform: uppercase;">← Voltar</p>
     </div>
 
-    <!-- Modal da Música -->
     <div id="music-modal" class="modal">
         <div class="modal-content">
             <h4 style="color:var(--accent); text-align:center; margin-bottom: 5px; text-transform: uppercase;">Estúdio Musical</h4>
@@ -165,12 +162,12 @@
     }
 
     function gerarIdFixo(valor) {
+        // Só gera se não estiver editando um evento existente
         if(!document.getElementById('conf-id').value) {
             document.getElementById('conf-id-fixo').value = sanitizarPasta(valor);
         }
     }
 
-    // CARREGA DADOS PARA EDIÇÃO (Mata o problema de "piscar" e vir vazio)
     window.onload = () => {
         const editData = localStorage.getItem('evento_para_editar');
         if (editData) {
@@ -222,26 +219,38 @@
     function fecharModalMusica() { toggleModal('music-modal', false); }
 
     async function subirArquivo(input, tipo) {
+        // Pega o ID FIXO (que é o nome da pasta sanitizado)
         let idPasta = document.getElementById('conf-id-fixo').value.trim();
+        
         if (!idPasta) {
-            alert("⚠️ Digite o NOME DO EVENTO antes!");
-            input.value = ""; return;
+            alert("⚠️ Digite o NOME DO EVENTO antes de subir arquivos!");
+            input.value = ""; 
+            return;
         }
 
         if(!input.files[0]) return;
         const file = input.files[0];
         const label = tipo === 'MOLDURA' ? document.getElementById('upload-label') : document.getElementById('music-file-label');
+        const statusGlobal = document.getElementById('music-status-text');
+        
         label.innerText = "⏳ ENVIANDO...";
 
         const formData = new FormData();
-        formData.append("video", file); // Chave que o Worker espera
+        formData.append("video", file); 
+        
+        // CORREÇÃO AQUI: Força o nome do arquivo conforme o tipo
         const fileName = tipo === 'MOLDURA' ? `moldura_principal.png` : `musica_evento.mp3`;
+        
         formData.append("uuid", fileName); 
         formData.append("evento", idPasta); 
 
         try {
             const res = await fetch(`${WORKER_URL}/upload`, { method: 'POST', body: formData });
-            if(!res.ok) throw new Error();
+            const data = await res.json();
+            
+            if(!res.ok || !data.success) throw new Error(data.error || "Erro upload");
+            
+            // O caminho relativo que salvamos no banco: pasta/arquivo.ext
             const pathRelativo = `${idPasta}/${fileName}`;
             
             if(tipo === 'MOLDURA') {
@@ -252,10 +261,14 @@
             } else {
                 document.getElementById('conf-musica-url').value = pathRelativo;
                 label.innerText = "✅ MÚSICA OK";
+                statusGlobal.innerText = "🎵 MÚSICA CONFIGURADA";
                 player.src = URL.createObjectURL(file);
                 player.style.display = "block";
             }
-        } catch (e) { alert("Erro no upload"); label.innerText = "ERRO"; }
+        } catch (e) { 
+            alert("Erro no upload: " + e.message); 
+            label.innerText = "ERRO"; 
+        }
     }
 
     async function salvarConfig() {
@@ -269,7 +282,8 @@
             musicaTrim: String((parseInt(document.getElementById('trim-min').value)||0)*60 + (parseInt(document.getElementById('trim-sec').value)||0)),
         };
 
-        if(!config.nome) return alert("Nome obrigatório");
+        if(!config.nome) return alert("Nome do evento é obrigatório!");
+        if(!config.molduraUrl) return alert("A moldura é obrigatória!");
 
         try {
             const res = await fetch(`${WORKER_URL}/salvar-evento`, {
@@ -278,9 +292,10 @@
             });
             if(res.ok) { 
                 localStorage.removeItem('evento_para_editar');
-                alert("Evento Salvo!"); window.location.href = 'index.html'; 
+                alert("Evento Salvo com Sucesso!"); 
+                window.location.href = 'index.html'; 
             }
-        } catch (e) { alert("Erro ao salvar"); }
+        } catch (e) { alert("Erro ao salvar no banco de dados"); }
     }
 </script>
 </body>
