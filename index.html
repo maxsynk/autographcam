@@ -169,7 +169,7 @@
     </div>
 
 <script>
-    const SENHA_MESTRA = ""; // Sua senha
+    const SENHA_MESTRA = "1234"; // COLOQUE SUA SENHA AQUI
     const WORKER_URL = "https://autographcam.maxprimefotovideo.workers.dev";
 
     window.onload = () => { if(sessionStorage.getItem('logado') === 'true') liberarSistema(); };
@@ -195,18 +195,27 @@
     function copiarLinkCliente() {
         const config = JSON.parse(localStorage.getItem('config_atual'));
         if (!config) { alert("Ative um evento primeiro!"); return; }
-        const nomeLimpo = config.nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '_');
-        const link = `https://maxsynk.github.io/autographcam/galeria.html?evento=${encodeURIComponent(nomeLimpo)}`;
+        const pasta = config.id_fixo || config.nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '_');
+        const link = `https://maxsynk.github.io/autographcam/galeria.html?evento=${encodeURIComponent(pasta)}`;
         navigator.clipboard.writeText(link).then(() => alert("Link copiado!"));
     }
 
+    // CORREÇÃO: Prepara os dados vindo do DB D1 para o formato que o app espera
     function prepararDadosEvento(ev) {
-        return { id: ev.id, id_fixo: ev.id, nome: ev.nome, data: ev.data, musicaUrl: ev.musicaUrl, molduraUrl: ev.molduraUrl, musicaTrim: ev.musicaTrim || "0", tempo: ev.tempo || "10" };
+        return { 
+            id: String(ev.id), 
+            id_fixo: ev.id_fixo || ev.id, 
+            nome: ev.nome, 
+            data: ev.data, 
+            musicaUrl: ev.musicaUrl, 
+            molduraUrl: ev.molduraUrl, 
+            musicaTrim: ev.musicaTrim || "0", 
+            tempo: ev.tempo || "10" 
+        };
     }
 
-    function abrirGaleria(nomeEvento) {
-        const nomeLimpo = nomeEvento.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '_');
-        window.location.href = `galeria_admin.html?evento=${encodeURIComponent(nomeLimpo)}`;
+    function abrirGaleria(idFixo) {
+        window.location.href = `galeria_admin.html?evento=${encodeURIComponent(idFixo)}`;
     }
 
     function irParaCamera(evRaw) { localStorage.setItem('config_atual', JSON.stringify(evRaw)); window.location.href = 'camera.html'; }
@@ -214,23 +223,37 @@
 
     function alternarAtivacao(evProcessado) {
         const atual = JSON.parse(localStorage.getItem('config_atual'));
-        if (atual && atual.id === evProcessado.id) { localStorage.removeItem('config_atual'); } 
-        else { localStorage.setItem('config_atual', JSON.stringify(evProcessado)); }
+        if (atual && String(atual.id) === String(evProcessado.id)) { 
+            localStorage.removeItem('config_atual'); 
+        } else { 
+            localStorage.setItem('config_atual', JSON.stringify(evProcessado)); 
+        }
         renderEventos();
     }
 
     async function renderEventos() {
         const container = document.getElementById('lista-eventos');
         const eventoAtivoConfig = JSON.parse(localStorage.getItem('config_atual'));
+        
         try {
+            // CORREÇÃO: Cache-buster (?t=) para garantir que novos eventos apareçam na hora
             const res = await fetch(`${WORKER_URL}/listar-eventos?t=${Date.now()}`);
+            if (!res.ok) throw new Error();
             const eventos = await res.json();
-            if(!eventos || eventos.length === 0) { container.innerHTML = `<p style="text-align:center; opacity:0.5; margin-top:20px;">Sem eventos cadastrados.</p>`; return; }
+            
+            if(!eventos || eventos.length === 0) { 
+                container.innerHTML = `<p style="text-align:center; opacity:0.5; margin-top:20px;">Sem eventos cadastrados.</p>`; 
+                return; 
+            }
+
             container.innerHTML = '';
             eventos.forEach((ev) => {
                 const evProcessado = prepararDadosEvento(ev);
                 const estaAtivo = eventoAtivoConfig && (String(eventoAtivoConfig.id) === String(evProcessado.id));
-                const evDataRaw = JSON.stringify(evProcessado).replace(/"/g, '&quot;');
+                
+                // Limpa as aspas para não quebrar o HTML do botão
+                const evDataRaw = JSON.stringify(evProcessado).replace(/'/g, "&apos;").replace(/"/g, '&quot;');
+                
                 const card = document.createElement('div');
                 card.className = `event-card ${estaAtivo ? 'active-border' : ''}`;
                 card.innerHTML = `
@@ -240,24 +263,26 @@
                             <span>DATA: ${evProcessado.data || '--/--/--'}</span>
                         </div>
                         <div class="group-actions-row">
-                            <button class="status-btn ${estaAtivo ? 'btn-is-on' : 'btn-is-off'}" onclick='alternarAtivacao(${evDataRaw})'>${estaAtivo ? '● ATIVADO' : 'ATIVAR'}</button>
-                            <button class="btn-edit-big" onclick='irParaEditar(${evDataRaw})'>EDITAR</button>
-                            <button class="btn-gallery-big" onclick='abrirGaleria("${evProcessado.nome}")'>GALERIA</button>
+                            <button class="status-btn ${estaAtivo ? 'btn-is-on' : 'btn-is-off'}" onclick="alternarAtivacao(${evDataRaw})">${estaAtivo ? '● ATIVADO' : 'ATIVAR'}</button>
+                            <button class="btn-edit-big" onclick="irParaEditar(${evDataRaw})">EDITAR</button>
+                            <button class="btn-gallery-big" onclick="abrirGaleria('${evProcessado.id_fixo}')">GALERIA</button>
                             <button class="btn-del-big" onclick="excluirEvento('${evProcessado.id}')">×</button>
                         </div>
                     </div>
-                    <button class="btn-camera-main" ${estaAtivo ? '' : 'disabled'} onclick='irParaCamera(${evDataRaw})'>📸</button>
+                    <button class="btn-camera-main" ${estaAtivo ? '' : 'disabled'} onclick="irParaCamera(${evDataRaw})">📸</button>
                 `;
                 container.appendChild(card);
             });
-        } catch (err) { container.innerHTML = `<p style="color: #ff5555; text-align:center;">Erro ao carregar lista.</p>`; }
+        } catch (err) { 
+            console.error(err);
+            container.innerHTML = `<p style="color: #ff5555; text-align:center;">Erro ao carregar lista de eventos.</p>`; 
+        }
     }
 
     async function excluirEvento(id) {
         if (!confirm(`⚠️ ATENÇÃO: Isso apagará permanentemente o evento e TODOS os vídeos do servidor (R2). Confirma?`)) return;
         
         try {
-            // Adicionado mode: 'cors' e tratamento de resposta
             const res = await fetch(`${WORKER_URL}/deletar-evento`, {
                 method: 'POST',
                 mode: 'cors',
@@ -278,7 +303,7 @@
             }
         } catch (e) {
             console.error(e);
-            alert("Erro de conexão. Verifique se o Worker está online ou se há bloqueio de CORS.");
+            alert("Erro de conexão com o servidor.");
         }
     }
 
