@@ -7,12 +7,13 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <style>
         :root { --bg: #0E1A25; --surface: #182232; --accent: #69829E; --text: #EFEEE9; }
+        /* Bloqueia seleção e realces visuais para parecer um app nativo */
         * { -webkit-tap-highlight-color: transparent; user-select: none; box-sizing: border-box; }
 
         body { 
             margin: 0; background: var(--bg); color: var(--text); 
             font-family: sans-serif; text-align: center; overflow-x: hidden;
-            overscroll-behavior-y: contain;
+            overscroll-behavior-y: contain; /* Bloqueia o 'puxar para atualizar' */
         }
         
         .header { padding: 30px 20px 10px 20px; cursor: pointer; }
@@ -52,7 +53,7 @@
 </head>
 <body oncontextmenu="return false;">
 
-    <div class="header" onclick="contarCliquesSair()">
+    <div class="header" id="titulo-trava">
         <h1>AUTOGRAPH CAM</h1>
         <div class="subtitle">colecionando momentos</div>
     </div>
@@ -82,12 +83,42 @@
     let cliquesSaida = 0;
     let tempoBusca;
     let idEventoAtual = "";
+    let bloqueioAtivo = true;
 
-    function contarCliquesSair() {
-        cliquesSaida++;
-        if (cliquesSaida >= 7) window.location.href = 'index.html';
-        setTimeout(() => cliquesSaida = 0, 3000);
+    // --- SISTEMA DE BLOQUEIO TOTAL ---
+
+    // 1. Bloqueia botão voltar do navegador e gestos de swipe
+    function travarNavegacao() {
+        history.pushState(null, null, window.location.href);
+        window.onpopstate = function() {
+            if (bloqueioAtivo) {
+                history.pushState(null, null, window.location.href);
+            }
+        };
     }
+    travarNavegacao();
+
+    // 2. Bloqueia atalhos de teclado (Alt+Seta, Backspace, etc)
+    window.addEventListener('keydown', function(e) {
+        if (bloqueioAtivo) {
+            if (e.key === "Backspace" && e.target.tagName !== "INPUT") e.preventDefault();
+            if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) e.preventDefault();
+        }
+    });
+
+    // 3. Sistema de 7 cliques para sair
+    document.getElementById('titulo-trava').addEventListener('click', function() {
+        cliquesSaida++;
+        if (cliquesSaida >= 7) {
+            bloqueioAtivo = false;
+            window.location.href = 'index.html';
+        }
+        // Reseta o contador se demorar mais de 3 segundos entre os cliques
+        clearTimeout(window.resetCliques);
+        window.resetCliques = setTimeout(() => { cliquesSaida = 0; }, 3000);
+    });
+
+    // --- FUNÇÕES DA GALERIA ---
 
     function timerBusca() {
         clearTimeout(tempoBusca);
@@ -97,7 +128,6 @@
 
     function executarBusca(num) {
         const index = parseInt(num) - 1;
-        // Invertemos a lógica para bater com a exibição (mais novos primeiro)
         if (listaVideos[index]) {
             abrir(listaVideos[index].path);
             document.getElementById('input-busca').value = '';
@@ -109,7 +139,6 @@
 
     async function carregar() {
         const params = new URLSearchParams(window.location.search);
-        // Tenta pegar o evento da URL, se não houver, tenta o 'config_atual' do localStorage
         const configLocal = JSON.parse(localStorage.getItem('config_atual') || "{}");
         const eventoID = params.get('evento') || configLocal.id_fixo;
 
@@ -122,12 +151,8 @@
         document.getElementById('nome-evento').innerText = idEventoAtual.replace(/_/g, ' ');
 
         try {
-            // Chamamos a rota listar-galeria do Worker
             const res = await fetch(`${WORKER}/listar-galeria?evento=${encodeURIComponent(idEventoAtual)}`);
             const arquivos = await res.json();
-            
-            // Filtramos apenas os "final_" (processados pelo motor)
-            // A ordenação reverse() coloca os últimos gravados no topo da galeria
             const finais = arquivos.filter(f => f.path.toLowerCase().includes('final_')).reverse();
 
             if (JSON.stringify(finais) !== JSON.stringify(listaVideos)) {
@@ -175,7 +200,6 @@
             try {
                 const r = await fetch(videoUrl);
                 const b = await r.blob();
-                // Nomeia o arquivo com o número original ou nome do arquivo
                 saveAs(b, path.split('/').pop());
             } catch (e) { 
                 alert("Erro ao baixar. Tente novamente."); 
@@ -191,7 +215,6 @@
         v.src = "";
     }
 
-    // Sincroniza a cada 5 segundos
     setInterval(carregar, 5000);
     carregar();
 </script>
