@@ -7,13 +7,14 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <style>
         :root { --bg: #0E1A25; --surface: #182232; --accent: #69829E; --text: #EFEEE9; }
+        
         /* Bloqueia seleção e realces visuais para parecer um app nativo */
         * { -webkit-tap-highlight-color: transparent; user-select: none; box-sizing: border-box; }
 
         body { 
             margin: 0; background: var(--bg); color: var(--text); 
             font-family: sans-serif; text-align: center; overflow-x: hidden;
-            overscroll-behavior-y: contain; /* Bloqueia o 'puxar para atualizar' */
+            overscroll-behavior-y: contain; /* Bloqueia o 'puxar para atualizar' no mobile */
         }
         
         .header { padding: 30px 20px 10px 20px; cursor: pointer; }
@@ -85,71 +86,49 @@
     let idEventoAtual = "";
     let bloqueioAtivo = true;
 
-    // --- SISTEMA DE BLOQUEIO AGRESSIVO ---
+    // --- SISTEMA DE TRAVA DE HISTÓRICO ---
+    function aplicarTravaAbsoluta() {
+        // Inunda o histórico para que o botão 'voltar' apenas recarregue a mesma página
+        for (let i = 0; i < 100; i++) {
+            history.pushState(null, null, window.location.href);
+        }
 
-    function iniciarBloqueio() {
-        // Cria um loop de histórico: sempre que o usuário tentar voltar,
-        // ele cairá em uma cópia da mesma página.
-        history.pushState(null, null, window.location.href);
-        
-        window.addEventListener('popstate', function () {
+        window.onpopstate = function (event) {
             if (bloqueioAtivo) {
-                // Força a permanência empurrando o estado novamente
                 history.pushState(null, null, window.location.href);
-                // Opcional: mostrar um aviso sutil ou feedback visual
-            }
-        });
-
-        // Impede o fechamento acidental/atualização (mostra alerta do navegador)
-        window.onbeforeunload = function() {
-            if (bloqueioAtivo) {
-                return "O sistema de galeria está travado. Use o código de saída.";
+                fechar(); // Fecha o modal de vídeo se o usuário tentar voltar
             }
         };
+
+        // Bloqueia teclas de navegação no teclado
+        window.addEventListener('keydown', function(e) {
+            if (bloqueioAtivo) {
+                if (e.key === "F5" || (e.ctrlKey && e.key === "r") || (e.altKey && e.key === "ArrowLeft") || (e.key === "Backspace" && e.target.tagName !== "INPUT")) {
+                    e.preventDefault();
+                }
+            }
+        });
     }
 
-    // Tenta capturar o clique do botão "Voltar" físico do Android repetidamente
-    document.addEventListener('backbutton', function(e) {
-        if (bloqueioAtivo) e.preventDefault();
-    }, false);
+    // Inicia a trava imediatamente
+    aplicarTravaAbsoluta();
 
-    // Bloqueia gestos e atalhos
-    window.addEventListener('keydown', function(e) {
-        if (bloqueioAtivo) {
-            // F5, Ctrl+R, Backspace, Alt+Seta
-            if (
-                e.key === "F5" || 
-                (e.ctrlKey && e.key === "r") || 
-                (e.key === "Backspace" && e.target.tagName !== "INPUT") ||
-                (e.altKey && e.key === "ArrowLeft")
-            ) {
-                e.preventDefault();
-            }
-        }
-    });
-
-    // Inicia a trava
-    iniciarBloqueio();
-
-    // Sistema de saída por 7 cliques (Única forma de sair)
+    // Saída Secreta (7 cliques no título)
     document.getElementById('titulo-trava').addEventListener('click', function() {
         cliquesSaida++;
         if (cliquesSaida >= 7) {
             bloqueioAtivo = false;
-            // Desativa os alertas antes de redirecionar
-            window.onbeforeunload = null;
-            window.location.href = 'index.html';
+            window.location.replace('index.html'); // Replace limpa o estado atual
         }
         clearTimeout(window.resetCliques);
-        window.resetCliques = setTimeout(() => { cliquesSaida = 0; }, 2000);
+        window.resetCliques = setTimeout(() => { cliquesSaida = 0; }, 2500);
     });
 
-    // --- FUNÇÕES DA GALERIA (MANTIDAS) ---
-
+    // --- LÓGICA DA GALERIA ---
     function timerBusca() {
         clearTimeout(tempoBusca);
         const valor = document.getElementById('input-busca').value;
-        if (valor) tempoBusca = setTimeout(() => executarBusca(valor), 2000);
+        if (valor) tempoBusca = setTimeout(() => executarBusca(valor), 1500);
     }
 
     function executarBusca(num) {
@@ -169,7 +148,7 @@
         const eventoID = params.get('evento') || configLocal.id_fixo;
 
         if (!eventoID) {
-            document.getElementById('nome-evento').innerText = "SELECIONE UM EVENTO NO PAINEL";
+            document.getElementById('nome-evento').innerText = "EVENTO NÃO ATIVADO";
             return;
         }
 
@@ -179,6 +158,8 @@
         try {
             const res = await fetch(`${WORKER}/listar-galeria?evento=${encodeURIComponent(idEventoAtual)}`);
             const arquivos = await res.json();
+            
+            // Filtra vídeos processados e coloca os novos em primeiro
             const finais = arquivos.filter(f => f.path.toLowerCase().includes('final_')).reverse();
 
             if (JSON.stringify(finais) !== JSON.stringify(listaVideos)) {
@@ -186,7 +167,7 @@
                 renderizar();
             }
         } catch (e) { 
-            console.error("Erro na sincronização:", e);
+            console.error("Erro ao sincronizar galeria.");
         }
     }
 
@@ -195,7 +176,7 @@
         grid.innerHTML = "";
         
         if (listaVideos.length === 0) {
-            grid.innerHTML = "<p style='grid-column: 1/-1; opacity:0.5; margin-top:50px;'>Aguardando processamento dos vídeos...</p>";
+            grid.innerHTML = "<p style='grid-column: 1/-1; opacity:0.5; margin-top:50px;'>Aguardando vídeos do evento...</p>";
             return;
         }
 
@@ -222,23 +203,27 @@
 
         document.getElementById('btn-save').onclick = async () => {
             const btn = document.getElementById('btn-save');
+            const originalText = btn.innerText;
             btn.innerText = "BAIXANDO...";
             try {
                 const r = await fetch(videoUrl);
                 const b = await r.blob();
                 saveAs(b, path.split('/').pop());
             } catch (e) { 
-                alert("Erro ao baixar. Tente novamente."); 
+                alert("Erro ao baixar vídeo."); 
             }
-            btn.innerText = "BAIXAR VÍDEO";
+            btn.innerText = originalText;
         };
     }
 
     function fechar() {
-        document.getElementById('modal').style.display = "none";
-        const v = document.getElementById('vid-full');
-        v.pause();
-        v.src = "";
+        const modal = document.getElementById('modal');
+        if(modal.style.display === "flex") {
+            modal.style.display = "none";
+            const v = document.getElementById('vid-full');
+            v.pause();
+            v.src = "";
+        }
     }
 
     setInterval(carregar, 5000);
