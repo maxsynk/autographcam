@@ -105,7 +105,12 @@
                 img.style.display = "block";
                 document.getElementById('upload-label').innerText = "📸 MOLDURA CARREGADA";
             }
-            if(ev.musicaUrl) document.getElementById('music-status-text').innerText = "🎵 MÚSICA CARREGADA";
+            if(ev.musicaUrl) {
+                document.getElementById('music-status-text').innerText = "🎵 MÚSICA CARREGADA";
+                const totalSeconds = parseInt(ev.musicaTrim) || 0;
+                document.getElementById('trim-min').value = Math.floor(totalSeconds / 60);
+                document.getElementById('trim-sec').value = totalSeconds % 60;
+            }
         }
     };
 
@@ -116,21 +121,39 @@
         if (!idPasta) return alert("Por favor, digite o NOME DO EVENTO primeiro.");
         if (!input.files[0]) return;
 
+        const file = input.files[0];
         const label = tipo === 'MOLDURA' ? document.getElementById('upload-label') : document.getElementById('music-file-label');
         const originalText = label.innerText;
-        label.innerText = "⏳ ENVIANDO...";
+
+        // Suporte para arquivos grandes (até 25MB)
+        if (file.size > 25 * 1024 * 1024) return alert("Arquivo muito grande! Máximo 25MB.");
+
+        label.innerText = `⏳ ENVIANDO (${(file.size / (1024 * 1024)).toFixed(1)}MB)...`;
 
         const formData = new FormData();
-        formData.append("file", input.files[0]);
+        formData.append("file", file);
         formData.append("evento", idPasta);
         formData.append("tipo", tipo.toLowerCase());
+        // Garante nomes de arquivos fixos para evitar duplicidade no R2
+        const fileName = tipo === 'MOLDURA' ? "moldura_principal.png" : "musica_evento.mp3";
+        formData.append("uuid", fileName);
 
         try {
-            const res = await fetch(`${WORKER_URL}/upload`, { method: 'POST', body: formData });
+            // AbortController para permitir uploads longos de até 3 minutos
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 180000);
+
+            const res = await fetch(`${WORKER_URL}/upload`, { 
+                method: 'POST', 
+                body: formData,
+                signal: controller.signal 
+            });
+            
+            clearTimeout(timeoutId);
             const data = await res.json();
             
             if(data.success) {
-                const path = `${idPasta}/${data.filename}`;
+                const path = `${idPasta}/${fileName}`;
                 if(tipo === 'MOLDURA') {
                     document.getElementById('conf-moldura-url').value = path;
                     document.getElementById('frame-preview').src = `${WORKER_URL}/stream?id=${path}&t=${Date.now()}`;
@@ -141,9 +164,9 @@
                     label.innerText = "✅ MÚSICA OK";
                     document.getElementById('music-status-text').innerText = "🎵 MÚSICA CARREGADA";
                 }
-            } else { throw new Error(); }
+            } else { throw new Error(data.error); }
         } catch (e) { 
-            alert("Erro ao subir arquivo. Tente novamente."); 
+            alert("Erro no upload: " + (e.name === 'AbortError' ? "Tempo limite excedido." : "Falha na conexão.")); 
             label.innerText = originalText;
         }
     }
@@ -157,7 +180,7 @@
             molduraUrl: document.getElementById('conf-moldura-url').value || "",
             musicaUrl: document.getElementById('conf-musica-url').value || "",
             musicaTrim: String(parseInt(document.getElementById('trim-min').value || 0)*60 + parseInt(document.getElementById('trim-sec').value || 0)),
-            modoVideo: "linear" // Informação para o processador: corre direto
+            modoVideo: "linear"
         };
 
         if(!config.nome) return alert("O Nome do Evento é obrigatório!");
