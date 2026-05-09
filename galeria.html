@@ -85,40 +85,66 @@
     let idEventoAtual = "";
     let bloqueioAtivo = true;
 
-    // --- SISTEMA DE BLOQUEIO TOTAL ---
+    // --- SISTEMA DE BLOQUEIO AGRESSIVO ---
 
-    // 1. Bloqueia botão voltar do navegador e gestos de swipe
-    function travarNavegacao() {
+    function iniciarBloqueio() {
+        // Cria um loop de histórico: sempre que o usuário tentar voltar,
+        // ele cairá em uma cópia da mesma página.
         history.pushState(null, null, window.location.href);
-        window.onpopstate = function() {
+        
+        window.addEventListener('popstate', function () {
             if (bloqueioAtivo) {
+                // Força a permanência empurrando o estado novamente
                 history.pushState(null, null, window.location.href);
+                // Opcional: mostrar um aviso sutil ou feedback visual
+            }
+        });
+
+        // Impede o fechamento acidental/atualização (mostra alerta do navegador)
+        window.onbeforeunload = function() {
+            if (bloqueioAtivo) {
+                return "O sistema de galeria está travado. Use o código de saída.";
             }
         };
     }
-    travarNavegacao();
 
-    // 2. Bloqueia atalhos de teclado (Alt+Seta, Backspace, etc)
+    // Tenta capturar o clique do botão "Voltar" físico do Android repetidamente
+    document.addEventListener('backbutton', function(e) {
+        if (bloqueioAtivo) e.preventDefault();
+    }, false);
+
+    // Bloqueia gestos e atalhos
     window.addEventListener('keydown', function(e) {
         if (bloqueioAtivo) {
-            if (e.key === "Backspace" && e.target.tagName !== "INPUT") e.preventDefault();
-            if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) e.preventDefault();
+            // F5, Ctrl+R, Backspace, Alt+Seta
+            if (
+                e.key === "F5" || 
+                (e.ctrlKey && e.key === "r") || 
+                (e.key === "Backspace" && e.target.tagName !== "INPUT") ||
+                (e.altKey && e.key === "ArrowLeft")
+            ) {
+                e.preventDefault();
+            }
         }
     });
 
-    // 3. Sistema de 7 cliques para sair
+    // Inicia a trava
+    iniciarBloqueio();
+
+    // Sistema de saída por 7 cliques (Única forma de sair)
     document.getElementById('titulo-trava').addEventListener('click', function() {
         cliquesSaida++;
         if (cliquesSaida >= 7) {
             bloqueioAtivo = false;
+            // Desativa os alertas antes de redirecionar
+            window.onbeforeunload = null;
             window.location.href = 'index.html';
         }
-        // Reseta o contador se demorar mais de 3 segundos entre os cliques
         clearTimeout(window.resetCliques);
-        window.resetCliques = setTimeout(() => { cliquesSaida = 0; }, 3000);
+        window.resetCliques = setTimeout(() => { cliquesSaida = 0; }, 2000);
     });
 
-    // --- FUNÇÕES DA GALERIA ---
+    // --- FUNÇÕES DA GALERIA (MANTIDAS) ---
 
     function timerBusca() {
         clearTimeout(tempoBusca);
