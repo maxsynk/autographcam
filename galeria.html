@@ -8,13 +8,12 @@
     <style>
         :root { --bg: #0E1A25; --surface: #182232; --accent: #69829E; --text: #EFEEE9; }
         
-        /* Bloqueia seleção e realces visuais para parecer um app nativo */
         * { -webkit-tap-highlight-color: transparent; user-select: none; box-sizing: border-box; }
 
         body { 
             margin: 0; background: var(--bg); color: var(--text); 
             font-family: sans-serif; text-align: center; overflow-x: hidden;
-            overscroll-behavior-y: contain; /* Bloqueia o 'puxar para atualizar' no mobile */
+            overscroll-behavior-y: contain; 
         }
         
         .header { padding: 30px 20px 10px 20px; cursor: pointer; }
@@ -86,39 +85,58 @@
     let idEventoAtual = "";
     let bloqueioAtivo = true;
 
-    // --- SISTEMA DE TRAVA DE HISTÓRICO ---
+    // --- SISTEMA DE TRAVA DE HISTÓRICO (KIOSK MODE) ---
     function aplicarTravaAbsoluta() {
-        // Inunda o histórico para que o botão 'voltar' apenas recarregue a mesma página
-        for (let i = 0; i < 100; i++) {
-            history.pushState(null, null, window.location.href);
-        }
-
-        window.onpopstate = function (event) {
+        const resetarEstado = () => {
             if (bloqueioAtivo) {
+                // Empurra um novo estado sempre que possível
                 history.pushState(null, null, window.location.href);
-                fechar(); // Fecha o modal de vídeo se o usuário tentar voltar
             }
         };
 
-        // Bloqueia teclas de navegação no teclado
+        // Inundação inicial do histórico
+        for (let i = 0; i < 50; i++) {
+            resetarEstado();
+        }
+
+        // Intercepta o botão voltar do navegador ou gestos do Android/iOS
+        window.onpopstate = function () {
+            if (bloqueioAtivo) {
+                resetarEstado();
+                // Se o modal estiver aberto, fecha ele em vez de sair da página
+                if (document.getElementById('modal').style.display === "flex") {
+                    fechar();
+                }
+            }
+        };
+
+        // Bloqueia atalhos de teclado e teclas de navegação
         window.addEventListener('keydown', function(e) {
             if (bloqueioAtivo) {
-                if (e.key === "F5" || (e.ctrlKey && e.key === "r") || (e.altKey && e.key === "ArrowLeft") || (e.key === "Backspace" && e.target.tagName !== "INPUT")) {
-                    e.preventDefault();
+                const keys = ["F5", "Backspace", "Escape", "r", "ArrowLeft"];
+                if (keys.includes(e.key) || (e.ctrlKey && e.key === 'r') || (e.altKey && e.key === 'ArrowLeft')) {
+                    if (e.target.tagName !== "INPUT") {
+                        e.preventDefault();
+                    }
                 }
             }
         });
+
+        // Reforço constante: a cada 2 segundos garante que há histórico para "queimar"
+        setInterval(resetarEstado, 2000);
     }
 
-    // Inicia a trava imediatamente
+    // Inicializa a trava
     aplicarTravaAbsoluta();
 
-    // Saída Secreta (7 cliques no título)
+    // Saída Secreta (7 cliques no título para manutenção)
     document.getElementById('titulo-trava').addEventListener('click', function() {
         cliquesSaida++;
         if (cliquesSaida >= 7) {
             bloqueioAtivo = false;
-            window.location.replace('index.html'); // Replace limpa o estado atual
+            alert("Modo manutenção ativo. Navegação liberada.");
+            // Opcional: redirecionar para index
+            // window.location.href = 'index.html'; 
         }
         clearTimeout(window.resetCliques);
         window.resetCliques = setTimeout(() => { cliquesSaida = 0; }, 2500);
@@ -132,9 +150,12 @@
     }
 
     function executarBusca(num) {
-        const index = parseInt(num) - 1;
-        if (listaVideos[index]) {
-            abrir(listaVideos[index].path);
+        const index = listaVideos.length - parseInt(num);
+        // Ajuste da lógica de busca para encontrar o ID correto na lista reversa
+        const videoEncontrado = listaVideos.find((v, i) => (listaVideos.length - i) == num);
+
+        if (videoEncontrado) {
+            abrir(videoEncontrado.path);
             document.getElementById('input-busca').value = '';
         } else {
             alert("Vídeo #" + num + " não encontrado.");
@@ -159,7 +180,6 @@
             const res = await fetch(`${WORKER}/listar-galeria?evento=${encodeURIComponent(idEventoAtual)}`);
             const arquivos = await res.json();
             
-            // Filtra vídeos processados e coloca os novos em primeiro
             const finais = arquivos.filter(f => f.path.toLowerCase().includes('final_')).reverse();
 
             if (JSON.stringify(finais) !== JSON.stringify(listaVideos)) {
