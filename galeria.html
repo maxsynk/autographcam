@@ -7,30 +7,41 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <style>
         :root { --bg: #0E1A25; --surface: #182232; --accent: #69829E; --text: #EFEEE9; }
-        * { -webkit-tap-highlight-color: transparent; user-select: none; box-sizing: border-box; touch-action: manipulation; }
+        * { -webkit-tap-highlight-color: transparent; user-select: none; box-sizing: border-box; }
+
         body { 
             margin: 0; background: var(--bg); color: var(--text); 
-            font-family: sans-serif; text-align: center; overflow: hidden;
-            position: fixed; width: 100%; height: 100%; /* Impede scroll e arraste de fechamento */
+            font-family: sans-serif; text-align: center; overflow-x: hidden;
+            overscroll-behavior-y: contain; /* Bloqueia o "puxar para atualizar" no mobile */
         }
+        
         .header { padding: 30px 20px 10px 20px; cursor: pointer; }
         .header h1 { font-size: 32px; letter-spacing: 4px; margin: 0; text-transform: uppercase; font-weight: 900; }
         .subtitle { font-size: 11px; letter-spacing: 4px; opacity: 0.9; margin-top: 2px; text-transform: uppercase; color: var(--accent); }
+        
         .event-info-container { display: flex; align-items: center; padding: 15px 20px; }
         .v-line { width: 2px; height: 30px; background: var(--accent); margin-right: 10px; }
         #nome-evento { color: var(--accent); font-size: 13px; text-transform: uppercase; font-weight: bold; text-align: left; }
+
         .search-area { padding: 15px; background: rgba(0,0,0,0.3); display: flex; justify-content: center; margin-bottom: 10px; }
         .search-area input { 
             width: 180px; padding: 12px; border-radius: 8px; border: 1px solid var(--accent); 
             background: #000; color: var(--accent); text-align: center; font-size: 18px; outline: none;
         }
+
         .grid { 
             display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); 
-            gap: 15px; padding: 20px; max-width: 1000px; margin: 0 auto; height: calc(100vh - 250px); overflow-y: auto;
+            gap: 15px; padding: 20px; max-width: 1000px; margin: 0 auto; 
         }
-        .card { background: var(--surface); border-radius: 12px; overflow: hidden; aspect-ratio: 9/16; position: relative; border: 1px solid rgba(105, 130, 158, 0.2); }
+        
+        .card { 
+            background: var(--surface); border-radius: 12px; overflow: hidden; 
+            aspect-ratio: 9/16; position: relative; border: 1px solid rgba(105, 130, 158, 0.2); 
+        }
+        
         .card video { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
         .num { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; z-index: 2; }
+
         #modal { position: fixed; inset: 0; background: #000; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
         #vid-full { width: 90%; max-height: 70vh; border-radius: 10px; }
         .btns { margin-top: 25px; display: flex; gap: 15px; }
@@ -41,6 +52,7 @@
 </head>
 <body oncontextmenu="return false;">
 
+    <!-- Adicionado o ID titulo-trava para a lógica de cliques -->
     <div class="header" id="titulo-trava">
         <h1>AUTOGRAPH CAM</h1>
         <div class="subtitle">colecionando momentos</div>
@@ -69,122 +81,142 @@
     const WORKER = "https://autographcam.maxprimefotovideo.workers.dev";
     let listaVideos = [];
     let cliquesSaida = 0;
+    let tempoBusca;
     let idEventoAtual = "";
-    let bloqueioAtivo = true;
 
-    // --- ULTRA TRAVA DE NAVEGAÇÃO ---
-    function travarSistema() {
-        // Força um hash na URL para criar âncoras internas
-        location.hash = "main";
+    // --- LÓGICA DE TRAVA DE SEGURANÇA (ESTILO KIOSK) ---
+    
+    function aplicarTrava() {
+        // Empurra um estado para o histórico
+        window.history.pushState(null, null, window.location.href);
         
-        // Se o usuário tentar voltar, ele apenas alterna entre #main e #lock
-        window.onhashchange = function() {
-            if (bloqueioAtivo) {
-                location.hash = "main";
-            }
-        };
-
-        // Inunda o histórico de forma massiva
-        for (let i = 0; i < 100; i++) {
-            history.pushState(null, null, null);
-        }
-
+        // Sempre que o usuário tentar voltar, empurramos ele "para frente" de novo
         window.onpopstate = function () {
-            if (bloqueioAtivo) {
-                history.pushState(null, null, null);
-                fechar(); // Se estiver no modal, fecha
+            window.history.pushState(null, null, window.location.href);
+            // Opcional: Se o modal estiver aberto e o usuário usar o "voltar" do celular, fechamos o modal
+            if(document.getElementById('modal').style.display === "flex") {
+                fechar();
             }
         };
-
-        // Bloqueia gestos de toque (swipe de borda no Android/iOS)
-        document.addEventListener('touchstart', (e) => {
-            if (e.touches.length > 1) e.preventDefault();
-        }, { passive: false });
     }
 
-    travarSistema();
-
-    // Saída Secreta (7 cliques)
-    document.getElementById('titulo-trava').addEventListener('click', function() {
+    // Saída para Admin (7 Cliques no Título)
+    document.getElementById('titulo-trava').onclick = () => {
         cliquesSaida++;
         if (cliquesSaida >= 7) {
-            bloqueioAtivo = false;
-            alert("SISTEMA LIBERADO");
-            window.onhashchange = null;
+            // Remove a trava antes de sair para não bugar a navegação da index
             window.onpopstate = null;
+            window.location.href = 'index.html';
         }
-        setTimeout(() => { cliquesSaida = 0; }, 3000);
-    });
+        // Reseta o contador se não completar os 7 cliques em 3 segundos
+        clearTimeout(window.resetCliques);
+        window.resetCliques = setTimeout(() => { cliquesSaida = 0; }, 3000);
+    };
 
-    // --- FUNCIONALIDADES ---
+    // --- LÓGICA DA GALERIA ---
+
     function timerBusca() {
-        clearTimeout(window.tempoBusca);
+        clearTimeout(tempoBusca);
         const valor = document.getElementById('input-busca').value;
-        if (valor) window.tempoBusca = setTimeout(() => executarBusca(valor), 1200);
+        if (valor) tempoBusca = setTimeout(() => executarBusca(valor), 2000);
     }
 
     function executarBusca(num) {
-        const video = listaVideos.find((v, i) => (listaVideos.length - i) == num);
-        if (video) {
-            abrir(video.path);
+        const index = parseInt(num) - 1;
+        if (listaVideos[index]) {
+            abrir(listaVideos[index].path);
+            document.getElementById('input-busca').value = '';
         } else {
-            alert("Não encontrado.");
+            alert("Vídeo #" + num + " não encontrado.");
+            document.getElementById('input-busca').value = '';
         }
-        document.getElementById('input-busca').value = '';
     }
 
     async function carregar() {
         const params = new URLSearchParams(window.location.search);
-        const eventoID = params.get('evento') || JSON.parse(localStorage.getItem('config_atual') || "{}").id_fixo;
-        if (!eventoID) return;
+        const configLocal = JSON.parse(localStorage.getItem('config_atual') || "{}");
+        const eventoID = params.get('evento') || configLocal.id_fixo;
+
+        if (!eventoID) {
+            document.getElementById('nome-evento').innerText = "SELECIONE UM EVENTO NO PAINEL";
+            return;
+        }
+
         idEventoAtual = eventoID;
         document.getElementById('nome-evento').innerText = idEventoAtual.replace(/_/g, ' ');
 
         try {
             const res = await fetch(`${WORKER}/listar-galeria?evento=${encodeURIComponent(idEventoAtual)}`);
             const arquivos = await res.json();
+            
             const finais = arquivos.filter(f => f.path.toLowerCase().includes('final_')).reverse();
+
             if (JSON.stringify(finais) !== JSON.stringify(listaVideos)) {
                 listaVideos = finais;
                 renderizar();
             }
-        } catch (e) {}
+        } catch (e) { 
+            console.error("Erro na sincronização:", e);
+        }
     }
 
     function renderizar() {
         const grid = document.getElementById('grid');
         grid.innerHTML = "";
+        
+        if (listaVideos.length === 0) {
+            grid.innerHTML = "<p style='grid-column: 1/-1; opacity:0.5; margin-top:50px;'>Aguardando processamento dos vídeos...</p>";
+            return;
+        }
+
         listaVideos.forEach((file, i) => {
+            const videoUrl = `${WORKER}/stream?id=${encodeURIComponent(file.path)}`;
             const card = document.createElement('div');
             card.className = 'card';
-            card.innerHTML = `<div class="num">#${listaVideos.length - i}</div><video src="${WORKER}/stream?id=${encodeURIComponent(file.path)}#t=0.5" muted playsinline></video>`;
+            card.innerHTML = `
+                <div class="num">#${listaVideos.length - i}</div>
+                <video src="${videoUrl}#t=0.5" muted playsinline></video>
+            `;
             card.onclick = () => abrir(file.path);
             grid.appendChild(card);
         });
     }
 
     function abrir(path) {
-        const v = document.getElementById('vid-full');
-        v.src = `${WORKER}/stream?id=${encodeURIComponent(path)}`;
+        const videoUrl = `${WORKER}/stream?id=${encodeURIComponent(path)}`;
         document.getElementById('modal').style.display = "flex";
+        const v = document.getElementById('vid-full');
+        v.src = videoUrl;
+        v.load();
         v.play();
 
         document.getElementById('btn-save').onclick = async () => {
-            const b = await (await fetch(v.src)).blob();
-            saveAs(b, path.split('/').pop());
+            const btn = document.getElementById('btn-save');
+            btn.innerText = "BAIXANDO...";
+            try {
+                const r = await fetch(videoUrl);
+                const b = await r.blob();
+                saveAs(b, path.split('/').pop());
+            } catch (e) { 
+                alert("Erro ao baixar. Tente novamente."); 
+            }
+            btn.innerText = "BAIXAR VÍDEO";
         };
     }
 
     function fechar() {
-        const m = document.getElementById('modal');
-        if(m.style.display === "flex") {
-            m.style.display = "none";
-            document.getElementById('vid-full').src = "";
-        }
+        document.getElementById('modal').style.display = "none";
+        const v = document.getElementById('vid-full');
+        v.pause();
+        v.src = "";
     }
 
-    setInterval(carregar, 5000);
-    carregar();
+    // Inicialização
+    window.onload = () => {
+        aplicarTrava();
+        carregar();
+        setInterval(carregar, 5000);
+    };
 </script>
 </body>
 </html>
