@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AUTOGRAPH CAM - Pro</title>
+    <title>AUTOGRAPH CAM - ULTRA HD</title>
     <style>
         :root {
             --bg: #0E1A25;
@@ -21,7 +21,6 @@
             display: flex; flex-direction: column;
         }
 
-        /* O espelhamento agora é controlado via JS para ser dinâmico */
         video { 
             width: 100%; height: 100%; object-fit: cover; background: #000;
         }
@@ -35,20 +34,11 @@
             position: absolute; top: 40px; width: 100%; text-align: center; z-index: 10;
         }
 
-        /* Botão de Inverter Espelhamento - Discreto no canto superior */
         .btn-mirror {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            z-index: 20;
-            background: rgba(0,0,0,0.4);
-            border: 1px solid rgba(255,255,255,0.3);
-            color: white;
-            padding: 8px 12px;
-            border-radius: 20px;
-            font-size: 11px;
-            letter-spacing: 1px;
-            cursor: pointer;
+            position: absolute; top: 15px; right: 15px; z-index: 20;
+            background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.3);
+            color: white; padding: 8px 12px; border-radius: 20px;
+            font-size: 11px; letter-spacing: 1px; cursor: pointer;
             backdrop-filter: blur(5px);
         }
 
@@ -100,7 +90,6 @@
 <body>
 
     <div id="app">
-        <!-- Botão Inverter (Mirror) -->
         <div class="btn-mirror" onclick="toggleMirror()">ESPELHAR: ON</div>
 
         <div class="header">
@@ -119,18 +108,19 @@
         </div>
     </div>
 
-    <canvas id="recorder-canvas" width="720" height="1280" style="display:none;"></canvas>
+    <!-- Canvas com suporte a altas resoluções -->
+    <canvas id="recorder-canvas" style="display:none;"></canvas>
 
     <div id="loader">
         <div class="spin"></div>
-        <p style="margin-top:20px; letter-spacing:2px;">PROCESSANDO VÍDEO...</p>
+        <p style="margin-top:20px; letter-spacing:2px; font-weight: bold;">PROCESSANDO ALTA QUALIDADE...</p>
     </div>
 
 <script>
     const WORKER_URL = "https://autographcam.maxprimefotovideo.workers.dev";
     const video = document.getElementById('preview');
     const canvas = document.getElementById('recorder-canvas');
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: false }); // Otimização de performance
     const molduraImg = new Image();
     molduraImg.crossOrigin = "anonymous";
 
@@ -139,7 +129,7 @@
     let chunks = [];
     let isFrontCamera = false; 
     let isRecording = false;
-    let mirrorMode = true; // Valor inicial
+    let mirrorMode = true;
 
     function updateMirrorUI() {
         video.style.transform = mirrorMode ? "scaleX(-1)" : "scaleX(1)";
@@ -155,19 +145,28 @@
     async function initCamera() {
         if (stream) stream.getTracks().forEach(t => t.stop());
         
+        // Solicita qualidade máxima de hardware
         const constraints = {
             video: { 
                 facingMode: isFrontCamera ? "user" : "environment",
-                width: { ideal: 1280 }, height: { ideal: 720 }
+                width: { ideal: 3840, min: 1280 },
+                height: { ideal: 2160, min: 720 },
+                frameRate: { ideal: 30 }
             }
         };
 
         try {
             stream = await navigator.mediaDevices.getUserMedia(constraints);
             video.srcObject = stream;
-            updateMirrorUI(); // Garante que aplica o espelhamento ao iniciar
+            
+            // Sincroniza o tamanho do canvas com a resolução real da câmera
+            video.onloadedmetadata = () => {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                updateMirrorUI();
+            };
         } catch (err) {
-            alert("Erro ao acessar câmera.");
+            alert("Erro ao acessar câmera de alta definição.");
         }
     }
 
@@ -197,7 +196,7 @@
         if (isRecording) return;
         isRecording = true;
         this.style.opacity = "0.2";
-        document.querySelector('.btn-mirror').style.display = 'none'; // Esconde o botão ao gravar
+        document.querySelector('.btn-mirror').style.display = 'none';
 
         let count = 3;
         const timer = document.getElementById('timer-display');
@@ -220,15 +219,15 @@
         const config = JSON.parse(localStorage.getItem('config_atual'));
         const duration = (config ? parseInt(config.tempo) : 10);
         
-        let mimeType = 'video/webm;codecs=vp8';
-        if (!MediaRecorder.isTypeSupported(mimeType)) {
-            mimeType = 'video/mp4'; 
-        }
+        // Seleção de Codec de Alta Performance
+        let mimeType = 'video/webm;codecs=vp9';
+        if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm;codecs=vp8';
+        if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/mp4';
         
         const captureStream = canvas.captureStream(30);
         recorder = new MediaRecorder(captureStream, { 
             mimeType: mimeType,
-            videoBitsPerSecond: 3000000 
+            videoBitsPerSecond: 30000000 // 30Mbps para máxima nitidez
         });
 
         recorder.ondataavailable = e => { if(e.data.size > 0) chunks.push(e.data); };
@@ -239,6 +238,10 @@
         
         const draw = () => {
             if (recorder && recorder.state === "recording") {
+                // Qualidade máxima de renderização no Canvas
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 
                 ctx.save();
@@ -250,7 +253,7 @@
                 }
                 ctx.restore();
 
-                if (molduraImg.complete && molduraImg.naturalWidth !== 0) {
+                if (molduraImg.complete) {
                     ctx.drawImage(molduraImg, 0, 0, canvas.width, canvas.height);
                 }
                 requestAnimationFrame(draw);
@@ -307,9 +310,8 @@
         isRecording = false;
         document.getElementById('loader').style.display = 'none';
         document.getElementById('rec-btn').style.opacity = "1";
-        document.querySelector('.btn-mirror').style.display = 'block'; // Mostra o botão novamente se falhar
+        document.querySelector('.btn-mirror').style.display = 'block';
     }
 </script>
-
 </body>
 </html>
