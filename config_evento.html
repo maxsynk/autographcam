@@ -5,269 +5,146 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>CONFIGURAR - AUTOGRAPH CAM</title>
     <style>
-        :root { 
-            --bg-deep: #0E1A25;
-            --bg-surface: #182232;
-            --accent: #69829E;
-            --accent-dark: #4A5D73;
-            --text-main: #EFEEE9;
-        }
-        
-        body { 
-            margin: 0; background: var(--bg-deep); color: var(--text-main); 
-            font-family: 'Segoe UI', Roboto, sans-serif; padding-bottom: 40px;
-            background-image: radial-gradient(circle at top right, #1a2a3a, #0E1A25);
-        }
-
-        .header {
-            background: linear-gradient(to bottom, #1c2d3d, var(--bg-deep)); 
-            padding: 35px 25px; text-align: center;
-            border-bottom: 2px solid var(--accent);
-        }
-
-        .header h1 { color: var(--text-main); margin: 0; font-size: 32px; letter-spacing: 5px; font-weight: 900; text-transform: uppercase; }
-        .header p { color: var(--accent); text-transform: uppercase; letter-spacing: 3px; font-size: 10px; margin-top: 5px; }
-
+        :root { --bg-deep: #0E1A25; --bg-surface: #182232; --accent: #69829E; --text-main: #EFEEE9; }
+        body { margin: 0; background: var(--bg-deep); color: var(--text-main); font-family: 'Segoe UI', sans-serif; padding-bottom: 40px; }
+        .header { background: #1c2d3d; padding: 35px 25px; text-align: center; border-bottom: 2px solid var(--accent); }
+        .header h1 { font-size: 28px; letter-spacing: 3px; text-transform: uppercase; margin: 0; }
         .container { padding: 20px; max-width: 500px; margin: 0 auto; }
-
-        .section {
-            background: var(--bg-surface); border: 1px solid rgba(105, 130, 158, 0.2); padding: 25px 20px;
-            border-radius: 24px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-        }
-
-        .section h3 { 
-            color: var(--accent); margin-top: 0; font-size: 12px; 
-            text-transform: uppercase; letter-spacing: 2px; border-bottom: 1px solid rgba(105, 130, 158, 0.1);
-            padding-bottom: 12px; margin-bottom: 20px;
-        }
-
-        label { display: block; font-size: 11px; margin: 15px 0 8px 0; color: var(--accent); font-weight: bold; text-transform: uppercase; }
-
-        input {
-            width: 100%; background: #000; border: 1px solid #333;
-            color: white; border-radius: 14px; box-sizing: border-box; font-size: 16px; outline: none;
-            padding: 16px;
-        }
-        input:focus { border-color: var(--accent); }
-
-        .fixed-info {
-            background: rgba(105, 130, 158, 0.1); padding: 15px; border-radius: 12px;
-            text-align: center; border: 1px solid var(--accent); color: var(--text-main);
-            font-weight: bold; letter-spacing: 1px;
-        }
-
-        .action-box {
-            width: 100%; padding: 20px; background: #000; border: 2px dashed #444; 
-            color: #888; border-radius: 18px; text-align: center; cursor: pointer;
-            font-weight: bold; display: flex; flex-direction: column; justify-content: center; align-items: center; box-sizing: border-box;
-        }
-        
-        #frame-preview { width: 100%; aspect-ratio: 9/16; max-height: 250px; margin-top: 15px; display: none; border-radius: 12px; border: 1px solid var(--accent); object-fit: contain; background: #000; }
-
-        .btn-save-main {
-            width: 100%; padding: 22px; background: linear-gradient(135deg, var(--accent), var(--accent-dark));
-            border: none; border-radius: 50px; color: var(--bg-deep); font-weight: 900;
-            text-transform: uppercase; cursor: pointer; font-size: 17px; margin-top: 20px;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.4);
-        }
-
-        .modal { position: fixed; inset: 0; background: rgba(14, 26, 37, 0.98); z-index: 9999; display: none; align-items: center; justify-content: center; backdrop-filter: blur(10px); }
-        .modal-content { width: 85%; max-width: 400px; background: var(--bg-surface); border-radius: 35px; border: 1px solid var(--accent); padding: 30px; display: flex; flex-direction: column; gap: 10px; }
-
-        #audio-player { width: 100%; margin: 15px 0; filter: invert(30%) sepia(10%) saturate(1000%) hue-rotate(170deg); height: 35px; }
-        
-        .trim-container { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
-        .trim-input { text-align: center; color: var(--accent); font-family: monospace; font-size: 18px; width: 60px; background: #000; border: 1px solid #333; border-radius: 8px; padding: 10px; }
+        .section { background: var(--bg-surface); padding: 20px; border-radius: 20px; margin-bottom: 20px; border: 1px solid rgba(105, 130, 158, 0.2); }
+        .section h3 { color: var(--accent); font-size: 12px; text-transform: uppercase; margin-bottom: 15px; border-bottom: 1px solid rgba(105, 130, 158, 0.1); padding-bottom: 5px; }
+        label { display: block; font-size: 10px; color: var(--accent); margin: 10px 0 5px; font-weight: bold; }
+        input { width: 100%; background: #000; border: 1px solid #333; color: white; border-radius: 10px; padding: 12px; outline: none; box-sizing: border-box; }
+        .action-box { width: 100%; padding: 20px; background: #000; border: 2px dashed #444; color: #888; border-radius: 15px; text-align: center; cursor: pointer; margin-top: 10px; }
+        #frame-preview { width: 100%; max-height: 200px; object-fit: contain; margin-top: 10px; display: none; border: 1px solid var(--accent); }
+        .btn-save-main { width: 100%; padding: 22px; background: var(--accent); border: none; border-radius: 50px; color: #000; font-weight: 900; text-transform: uppercase; cursor: pointer; margin-top: 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(5px); }
+        .modal-content { background: var(--bg-surface); padding: 25px; border-radius: 20px; width: 90%; max-width: 350px; }
+        .trim-input { width: 70px; text-align: center; font-size: 18px; }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <h1 id="titulo-pagina">AUTOGRAPH CAM</h1>
-        <p>colecionando momentos</p>
-    </div>
+    <div class="header"><h1>AUTOGRAPH CAM</h1></div>
 
     <div class="container">
         <input type="hidden" id="conf-id">
         <input type="hidden" id="conf-id-fixo">
 
         <div class="section">
-            <h3>1. O Evento</h3>
-            <label>NOME DO EVENTO (Visual)</label>
-            <input type="text" id="conf-nome" placeholder="Ex: Casamento João e Maria" oninput="gerarIdFixo(this.value)">
+            <h3>1. Dados do Evento</h3>
+            <label>NOME DO EVENTO (Obrigatório)</label>
+            <input type="text" id="conf-nome" placeholder="Ex: Festa de Formatura" oninput="gerarIdFixo(this.value)">
             <label>DATA</label>
             <input type="date" id="conf-data">
         </div>
 
         <div class="section">
-            <h3>2. Configuração de Vídeo</h3>
-            <label>TEMPO DE GRAVAÇÃO</label>
-            <div class="fixed-info">10 SEGUNDOS (FIXO)</div>
-        </div>
-
-        <div class="section">
-            <h3>3. Estética</h3>
-            <div class="action-box" onclick="toggleModal('music-modal', true)" style="margin-bottom: 10px; border-style: solid; border-color: rgba(105, 130, 158, 0.3);">
-                <span id="music-status-text" style="color: var(--accent);">🎵 CONFIGURAR MÚSICA</span>
-                <small id="music-filename-display" style="color: #666; font-size: 10px; margin-top: 5px; display: block;"></small>
+            <h3>2. Estética e Áudio (Opcionais)</h3>
+            <div class="action-box" onclick="toggleModal('music-modal', true)">
+                <span id="music-status-text">🎵 CONFIGURAR MÚSICA</span>
             </div>
             
-            <div class="action-box" id="btn-moldura-box" onclick="document.getElementById('file-moldura').click()">
+            <div class="action-box" onclick="document.getElementById('file-moldura').click()">
                 <span id="upload-label">📸 UPAR MOLDURA (PNG)</span>
                 <input type="file" id="file-moldura" accept="image/png" style="display:none" onchange="subirArquivo(this, 'MOLDURA')">
             </div>
             
             <input type="hidden" id="conf-moldura-url">
             <input type="hidden" id="conf-musica-url">
-            
-            <center><img id="frame-preview"></center>
+            <img id="frame-preview">
         </div>
 
-        <button class="btn-save-main" onclick="salvarConfig()">SALVAR EVENTO</button>
-        <p onclick="window.location.href='index.html'" style="text-align:center; color:var(--accent); font-size:12px; margin-top:20px; cursor:pointer; font-weight:bold; text-transform: uppercase;">← Voltar</p>
+        <button class="btn-save-main" onclick="salvarConfig()">SALVAR CONFIGURAÇÕES</button>
+        <p onclick="window.location.href='index.html'" style="text-align:center; color:var(--accent); cursor:pointer; font-size:12px; margin-top:20px; font-weight:bold;">← CANCELAR E VOLTAR</p>
     </div>
 
     <div id="music-modal" class="modal">
         <div class="modal-content">
-            <h4 style="color:var(--accent); text-align:center; margin-bottom: 5px; text-transform: uppercase;">Estúdio Musical</h4>
-            <div class="action-box" onclick="document.getElementById('file-musica').click()" style="padding: 15px;">
-                <span id="music-file-label">📤 UPAR MP3</span>
+            <h4 style="color:var(--accent); text-align:center; margin-top:0;">ESTÚDIO DE ÁUDIO</h4>
+            <div class="action-box" onclick="document.getElementById('file-musica').click()">
+                <span id="music-file-label">📤 SELECIONAR MP3</span>
                 <input type="file" id="file-musica" accept="audio/mpeg, audio/mp3" style="display:none" onchange="subirArquivo(this, 'MUSICA')">
             </div>
-            <div id="music-controls" style="margin-top: 10px;">
-                <audio id="audio-player" controls style="display: none;"></audio>
-                <label>INICIAR MÚSICA EM (MM:SS):</label>
-                <div class="trim-container">
-                    <input type="number" id="trim-min" class="trim-input" placeholder="00" min="0" value="0" oninput="sincronizarPlayer()">
-                    <span style="font-weight:bold;">:</span>
-                    <input type="number" id="trim-sec" class="trim-input" placeholder="00" min="0" max="59" value="0" oninput="sincronizarPlayer()">
-                    <button type="button" onclick="marcarTempoAtual()" style="background: var(--bg-deep); border: 1px solid var(--accent); color: var(--accent); border-radius: 10px; padding: 12px; cursor: pointer; font-weight: bold; flex-shrink: 0;">MARCAR</button>
-                </div>
+            <label style="text-align:center;">INÍCIO DA MÚSICA (MIN : SEG)</label>
+            <div style="display:flex; gap:10px; justify-content:center; margin-bottom:20px;">
+                <input type="number" id="trim-min" class="trim-input" value="0" min="0">
+                <span style="font-size:24px;">:</span>
+                <input type="number" id="trim-sec" class="trim-input" value="0" min="0" max="59">
             </div>
-            <button class="btn-save-main" style="padding: 15px;" onclick="fecharModalMusica()">CONCLUIR</button>
+            <button class="btn-save-main" style="padding:12px;" onclick="toggleModal('music-modal', false)">CONCLUIR</button>
         </div>
     </div>
 
 <script>
     const WORKER_URL = "https://autographcam.maxprimefotovideo.workers.dev";
-    const player = document.getElementById('audio-player');
 
-    function sanitizarPasta(texto) {
-        if (!texto) return "";
-        return texto.normalize("NFD")
-                    .replace(/[\u0300-\u036f]/g, "")
-                    .replace(/[^\w\s]/gi, '')
-                    .replace(/\s+/g, '_')
-                    .toLowerCase();
-    }
-
-    function gerarIdFixo(valor) {
-        // Só gera se não estiver editando um evento existente
+    function gerarIdFixo(v) {
         if(!document.getElementById('conf-id').value) {
-            document.getElementById('conf-id-fixo').value = sanitizarPasta(valor);
+            const sanitizado = v.toLowerCase()
+                .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                .replace(/\s+/g, '_')
+                .replace(/[^\w]/g, '');
+            document.getElementById('conf-id-fixo').value = sanitizado;
         }
     }
 
     window.onload = () => {
         const editData = localStorage.getItem('evento_para_editar');
         if (editData) {
-            try {
-                const ev = JSON.parse(editData);
-                document.getElementById('conf-id').value = ev.id || "";
-                document.getElementById('conf-id-fixo').value = ev.id_fixo || sanitizarPasta(ev.nome); 
-                document.getElementById('conf-nome').value = ev.nome || "";
-                document.getElementById('conf-data').value = ev.data || "";
-                
-                if(ev.musicaUrl) {
-                    document.getElementById('conf-musica-url').value = ev.musicaUrl;
-                    document.getElementById('music-status-text').innerText = "🎵 MÚSICA CONFIGURADA";
-                    player.src = `${WORKER_URL}/stream?id=${ev.musicaUrl}`;
-                    player.style.display = "block";
-                    const totalSec = parseInt(ev.musicaTrim) || 0;
-                    document.getElementById('trim-min').value = Math.floor(totalSec / 60);
-                    document.getElementById('trim-sec').value = totalSec % 60;
-                }
-
-                if(ev.molduraUrl) {
-                    document.getElementById('conf-moldura-url').value = ev.molduraUrl;
-                    document.getElementById('frame-preview').src = `${WORKER_URL}/stream?id=${ev.molduraUrl}&t=${Date.now()}`; 
-                    document.getElementById('frame-preview').style.display = "block";
-                    document.getElementById('upload-label').innerText = "📸 MOLDURA OK";
-                }
-                document.getElementById('titulo-pagina').innerText = "EDITAR EVENTO";
-            } catch (e) { console.error(e); }
+            const ev = JSON.parse(editData);
+            document.getElementById('conf-id').value = ev.id || "";
+            document.getElementById('conf-id-fixo').value = ev.id_fixo || "";
+            document.getElementById('conf-nome').value = ev.nome || "";
+            document.getElementById('conf-data').value = ev.data || "";
+            document.getElementById('conf-moldura-url').value = ev.molduraUrl || "";
+            document.getElementById('conf-musica-url').value = ev.musicaUrl || "";
+            
+            if(ev.molduraUrl) {
+                const img = document.getElementById('frame-preview');
+                img.src = `${WORKER_URL}/stream?id=${ev.molduraUrl}`;
+                img.style.display = "block";
+                document.getElementById('upload-label').innerText = "📸 MOLDURA CARREGADA";
+            }
+            if(ev.musicaUrl) document.getElementById('music-status-text').innerText = "🎵 MÚSICA CARREGADA";
         }
     };
 
-    function sincronizarPlayer() {
-        if(player.src) {
-            const m = parseInt(document.getElementById('trim-min').value) || 0;
-            const s = parseInt(document.getElementById('trim-sec').value) || 0;
-            player.currentTime = (m * 60) + s;
-        }
-    }
-
-    function marcarTempoAtual() {
-        if(player.src) {
-            const total = Math.floor(player.currentTime);
-            document.getElementById('trim-min').value = Math.floor(total / 60);
-            document.getElementById('trim-sec').value = total % 60;
-        }
-    }
-
-    function toggleModal(id, show) { document.getElementById(id).style.display = show ? 'flex' : 'none'; if(!show) player.pause(); }
-    function fecharModalMusica() { toggleModal('music-modal', false); }
+    function toggleModal(id, show) { document.getElementById(id).style.display = show ? 'flex' : 'none'; }
 
     async function subirArquivo(input, tipo) {
-        // Pega o ID FIXO (que é o nome da pasta sanitizado)
-        let idPasta = document.getElementById('conf-id-fixo').value.trim();
-        
-        if (!idPasta) {
-            alert("⚠️ Digite o NOME DO EVENTO antes de subir arquivos!");
-            input.value = ""; 
-            return;
-        }
+        let idPasta = document.getElementById('conf-id-fixo').value;
+        if (!idPasta) return alert("Por favor, digite o NOME DO EVENTO primeiro.");
+        if (!input.files[0]) return;
 
-        if(!input.files[0]) return;
-        const file = input.files[0];
         const label = tipo === 'MOLDURA' ? document.getElementById('upload-label') : document.getElementById('music-file-label');
-        const statusGlobal = document.getElementById('music-status-text');
-        
+        const originalText = label.innerText;
         label.innerText = "⏳ ENVIANDO...";
 
         const formData = new FormData();
-        formData.append("video", file); 
-        
-        // CORREÇÃO AQUI: Força o nome do arquivo conforme o tipo
-        const fileName = tipo === 'MOLDURA' ? `moldura_principal.png` : `musica_evento.mp3`;
-        
-        formData.append("uuid", fileName); 
-        formData.append("evento", idPasta); 
+        formData.append("file", input.files[0]);
+        formData.append("evento", idPasta);
+        formData.append("tipo", tipo.toLowerCase());
 
         try {
             const res = await fetch(`${WORKER_URL}/upload`, { method: 'POST', body: formData });
             const data = await res.json();
             
-            if(!res.ok || !data.success) throw new Error(data.error || "Erro upload");
-            
-            // O caminho relativo que salvamos no banco: pasta/arquivo.ext
-            const pathRelativo = `${idPasta}/${fileName}`;
-            
-            if(tipo === 'MOLDURA') {
-                document.getElementById('conf-moldura-url').value = pathRelativo;
-                document.getElementById('frame-preview').src = `${WORKER_URL}/stream?id=${pathRelativo}&t=${Date.now()}`;
-                document.getElementById('frame-preview').style.display = "block";
-                label.innerText = "📸 MOLDURA OK";
-            } else {
-                document.getElementById('conf-musica-url').value = pathRelativo;
-                label.innerText = "✅ MÚSICA OK";
-                statusGlobal.innerText = "🎵 MÚSICA CONFIGURADA";
-                player.src = URL.createObjectURL(file);
-                player.style.display = "block";
-            }
+            if(data.success) {
+                const path = `${idPasta}/${data.filename}`;
+                if(tipo === 'MOLDURA') {
+                    document.getElementById('conf-moldura-url').value = path;
+                    document.getElementById('frame-preview').src = `${WORKER_URL}/stream?id=${path}&t=${Date.now()}`;
+                    document.getElementById('frame-preview').style.display = "block";
+                    label.innerText = "📸 MOLDURA OK";
+                } else {
+                    document.getElementById('conf-musica-url').value = path;
+                    label.innerText = "✅ MÚSICA OK";
+                    document.getElementById('music-status-text').innerText = "🎵 MÚSICA CARREGADA";
+                }
+            } else { throw new Error(); }
         } catch (e) { 
-            alert("Erro no upload: " + e.message); 
-            label.innerText = "ERRO"; 
+            alert("Erro ao subir arquivo. Tente novamente."); 
+            label.innerText = originalText;
         }
     }
 
@@ -277,25 +154,27 @@
             id_fixo: document.getElementById('conf-id-fixo').value,
             nome: document.getElementById('conf-nome').value.trim(),
             data: document.getElementById('conf-data').value,
-            molduraUrl: document.getElementById('conf-moldura-url').value, 
-            musicaUrl: document.getElementById('conf-musica-url').value, 
-            musicaTrim: String((parseInt(document.getElementById('trim-min').value)||0)*60 + (parseInt(document.getElementById('trim-sec').value)||0)),
+            molduraUrl: document.getElementById('conf-moldura-url').value || "",
+            musicaUrl: document.getElementById('conf-musica-url').value || "",
+            musicaTrim: String(parseInt(document.getElementById('trim-min').value || 0)*60 + parseInt(document.getElementById('trim-sec').value || 0)),
+            modoVideo: "linear" // Informação para o processador: corre direto
         };
 
-        if(!config.nome) return alert("Nome do evento é obrigatório!");
-        if(!config.molduraUrl) return alert("A moldura é obrigatória!");
+        if(!config.nome) return alert("O Nome do Evento é obrigatório!");
 
         try {
             const res = await fetch(`${WORKER_URL}/salvar-evento`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(config)
             });
-            if(res.ok) { 
+
+            if(res.ok) {
                 localStorage.removeItem('evento_para_editar');
-                alert("Evento Salvo com Sucesso!"); 
-                window.location.href = 'index.html'; 
-            }
-        } catch (e) { alert("Erro ao salvar no banco de dados"); }
+                alert("Configurações salvas com sucesso!");
+                window.location.href = 'index.html';
+            } else { alert("Erro ao salvar no servidor."); }
+        } catch (e) { alert("Erro de conexão."); }
     }
 </script>
 </body>
