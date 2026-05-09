@@ -11,8 +11,8 @@
 
         body { 
             margin: 0; background: var(--bg); color: var(--text); 
-            font-family: sans-serif; text-align: center; overflow-x: hidden;
-            overscroll-behavior-y: contain; /* Bloqueia o "puxar para atualizar" no mobile */
+            font-family: sans-serif; text-align: center; overflow: hidden;
+            position: fixed; width: 100%; height: 100%; /* Trava o corpo da página */
         }
         
         .header { padding: 30px 20px 10px 20px; cursor: pointer; }
@@ -31,14 +31,11 @@
 
         .grid { 
             display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); 
-            gap: 15px; padding: 20px; max-width: 1000px; margin: 0 auto; 
+            gap: 15px; padding: 20px; max-width: 1000px; margin: 0 auto;
+            height: calc(100vh - 200px); overflow-y: auto; /* Scroll apenas na galeria */
         }
         
-        .card { 
-            background: var(--surface); border-radius: 12px; overflow: hidden; 
-            aspect-ratio: 9/16; position: relative; border: 1px solid rgba(105, 130, 158, 0.2); 
-        }
-        
+        .card { background: var(--surface); border-radius: 12px; overflow: hidden; aspect-ratio: 9/16; position: relative; border: 1px solid rgba(105, 130, 158, 0.2); }
         .card video { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
         .num { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; z-index: 2; }
 
@@ -52,7 +49,6 @@
 </head>
 <body oncontextmenu="return false;">
 
-    <!-- Adicionado o ID titulo-trava para a lógica de cliques -->
     <div class="header" id="titulo-trava">
         <h1>AUTOGRAPH CAM</h1>
         <div class="subtitle">colecionando momentos</div>
@@ -83,42 +79,57 @@
     let cliquesSaida = 0;
     let tempoBusca;
     let idEventoAtual = "";
+    let bloqueioAtivo = true;
 
-    // --- LÓGICA DE TRAVA DE SEGURANÇA (ESTILO KIOSK) ---
-    
-    function aplicarTrava() {
-        // Empurra um estado para o histórico
-        window.history.pushState(null, null, window.location.href);
-        
-        // Sempre que o usuário tentar voltar, empurramos ele "para frente" de novo
-        window.onpopstate = function () {
-            window.history.pushState(null, null, window.location.href);
-            // Opcional: Se o modal estiver aberto e o usuário usar o "voltar" do celular, fechamos o modal
-            if(document.getElementById('modal').style.display === "flex") {
-                fechar();
+    // --- ULTRA TRAVA DE HISTÓRICO (INQUEBRÁVEL) ---
+    function aplicarUltraTrava() {
+        const inundaHistorico = () => {
+            if (!bloqueioAtivo) return;
+            for (let i = 0; i < 50; i++) {
+                history.pushState({ lock: true }, null, window.location.href);
             }
         };
+
+        // Inundação inicial
+        inundaHistorico();
+
+        // Se o usuário clicar em "Voltar", forçamos ele a ir para frente
+        window.addEventListener('popstate', function (event) {
+            if (bloqueioAtivo) {
+                // Se o modal estiver aberto, apenas fecha o modal
+                if (document.getElementById('modal').style.display === "flex") {
+                    fechar();
+                }
+                // Empurra de volta para a "frente" da pilha de histórico
+                history.pushState({ lock: true }, null, window.location.href);
+                history.forward();
+            }
+        });
+
+        // Reforço: A cada 1 segundo, garante que a pilha de histórico está cheia
+        setInterval(() => {
+            if (bloqueioAtivo) history.pushState({ lock: true }, null, window.location.href);
+        }, 1000);
     }
 
-    // Saída para Admin (7 Cliques no Título)
+    aplicarUltraTrava();
+
+    // Saída Secreta (7 cliques no título)
     document.getElementById('titulo-trava').onclick = () => {
         cliquesSaida++;
         if (cliquesSaida >= 7) {
-            // Remove a trava antes de sair para não bugar a navegação da index
-            window.onpopstate = null;
+            bloqueioAtivo = false;
             window.location.href = 'index.html';
         }
-        // Reseta o contador se não completar os 7 cliques em 3 segundos
         clearTimeout(window.resetCliques);
         window.resetCliques = setTimeout(() => { cliquesSaida = 0; }, 3000);
     };
 
     // --- LÓGICA DA GALERIA ---
-
     function timerBusca() {
         clearTimeout(tempoBusca);
         const valor = document.getElementById('input-busca').value;
-        if (valor) tempoBusca = setTimeout(() => executarBusca(valor), 2000);
+        if (valor) tempoBusca = setTimeout(() => executarBusca(valor), 1500);
     }
 
     function executarBusca(num) {
@@ -138,7 +149,7 @@
         const eventoID = params.get('evento') || configLocal.id_fixo;
 
         if (!eventoID) {
-            document.getElementById('nome-evento').innerText = "SELECIONE UM EVENTO NO PAINEL";
+            document.getElementById('nome-evento').innerText = "SINCRONIZANDO...";
             return;
         }
 
@@ -148,35 +159,27 @@
         try {
             const res = await fetch(`${WORKER}/listar-galeria?evento=${encodeURIComponent(idEventoAtual)}`);
             const arquivos = await res.json();
-            
             const finais = arquivos.filter(f => f.path.toLowerCase().includes('final_')).reverse();
 
             if (JSON.stringify(finais) !== JSON.stringify(listaVideos)) {
                 listaVideos = finais;
                 renderizar();
             }
-        } catch (e) { 
-            console.error("Erro na sincronização:", e);
-        }
+        } catch (e) { console.error(e); }
     }
 
     function renderizar() {
         const grid = document.getElementById('grid');
         grid.innerHTML = "";
-        
         if (listaVideos.length === 0) {
-            grid.innerHTML = "<p style='grid-column: 1/-1; opacity:0.5; margin-top:50px;'>Aguardando processamento dos vídeos...</p>";
+            grid.innerHTML = "<p style='grid-column: 1/-1; opacity:0.5; margin-top:50px;'>Aguardando vídeos...</p>";
             return;
         }
-
         listaVideos.forEach((file, i) => {
             const videoUrl = `${WORKER}/stream?id=${encodeURIComponent(file.path)}`;
             const card = document.createElement('div');
             card.className = 'card';
-            card.innerHTML = `
-                <div class="num">#${listaVideos.length - i}</div>
-                <video src="${videoUrl}#t=0.5" muted playsinline></video>
-            `;
+            card.innerHTML = `<div class="num">#${listaVideos.length - i}</div><video src="${videoUrl}#t=0.5" muted playsinline></video>`;
             card.onclick = () => abrir(file.path);
             grid.appendChild(card);
         });
@@ -187,7 +190,6 @@
         document.getElementById('modal').style.display = "flex";
         const v = document.getElementById('vid-full');
         v.src = videoUrl;
-        v.load();
         v.play();
 
         document.getElementById('btn-save').onclick = async () => {
@@ -197,9 +199,7 @@
                 const r = await fetch(videoUrl);
                 const b = await r.blob();
                 saveAs(b, path.split('/').pop());
-            } catch (e) { 
-                alert("Erro ao baixar. Tente novamente."); 
-            }
+            } catch (e) { alert("Erro ao baixar."); }
             btn.innerText = "BAIXAR VÍDEO";
         };
     }
@@ -211,12 +211,8 @@
         v.src = "";
     }
 
-    // Inicialização
-    window.onload = () => {
-        aplicarTrava();
-        carregar();
-        setInterval(carregar, 5000);
-    };
+    setInterval(carregar, 5000);
+    carregar();
 </script>
 </body>
 </html>
